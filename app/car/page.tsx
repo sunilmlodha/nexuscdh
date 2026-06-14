@@ -392,7 +392,7 @@ export default function CARPage() {
                   Paste a single profile object or an array of profiles.
                 </div>
                 <textarea value={manualJson} onChange={e => setManualJson(e.target.value)}
-                  style={{ width: '100%', height: 200, padding: 10, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-secondary)', color: 'var(--text)', fontSize: 12, fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }} />
+                  style={{ width: '100%', height: 140, padding: 10, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-secondary)', color: 'var(--text)', fontSize: 12, fontFamily: 'monospace', resize: 'none', boxSizing: 'border-box' }} />
                 <button onClick={ingestManual} disabled={ingestLoading}
                   style={{ marginTop: 12, width: '100%', padding: '10px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
                   {ingestLoading ? 'Ingesting…' : 'Ingest Profile(s)'}
