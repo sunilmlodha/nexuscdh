@@ -24,7 +24,7 @@ function PolicyModal({ policy, onClose }: { policy?: ContactPolicy; onClose: ()=
 
   const save = () => {
     if (!name.trim()) return;
-    const payload = { name, description:desc, maxPerDay:maxDay, maxPerWeek:maxWeek, maxPerMonth:maxMonth, conversionCooldownDays:cooldown, requiresConsent:requireConsent, consentTypes:['marketing'], fairnessEnabled:fairness, fairnessThreshold, fairnessAttribute:fairnessAttr||undefined, channelIds:selChannels as any, suppressionRules:suppression, lobId:undefined, status: status as any };
+    const payload = { name, description:desc, maxPerDay:maxDay, maxPerWeek:maxWeek, maxPerMonth:maxMonth, fatigueWindowDays:30, conversionCooldownDays:cooldown, requiresConsent:requireConsent, consentTypes:['marketing'], fairnessEnabled:fairness, fairnessThreshold, fairnessAttribute:fairnessAttr||undefined, channelIds:selChannels as any, suppressionRules:suppression, lobId:undefined, status: status as any };
     if (policy) updatePolicy(policy.id, payload);
     else addPolicy(payload);
     setSaved(true); setTimeout(onClose, 500);

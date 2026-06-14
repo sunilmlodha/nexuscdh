@@ -42,6 +42,8 @@ export interface DBStrategy {
   arbitration: 'propensity' | 'value' | 'weighted' | 'random_ab';
   priority: 'low' | 'standard' | 'high' | 'critical';
   status: 'active' | 'draft' | 'paused' | 'ended';
+  start_date?: string;
+  end_date?: string;
   created_at: string;
   updated_at: string;
 }

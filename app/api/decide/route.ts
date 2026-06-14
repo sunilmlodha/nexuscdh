@@ -131,6 +131,7 @@ function evaluateStrategy(
 
   return {
     outcome: 'PASS',
+    reason: 'All gates passed',
     actionIds: eligibleActions.map(a => a.id),
     maxPerDay:  maxDay,
     maxPerWeek: maxWeek,

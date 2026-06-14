@@ -29,7 +29,7 @@ function StrategyModal({ strategy, onClose }: { strategy?: Strategy; onClose: ()
 
   const save = () => {
     if (!name.trim()) return;
-    const payload = { name, description:desc, categoryId:catId||undefined, topicId:topicId||undefined, actionIds:selActions, channelIds:selChannels as any, audienceIds:selAudiences, policyId:policyId||undefined, arbitration: arbitration as any, priority: priority as any, status: status as any };
+    const payload = { name, description:desc, categoryId:catId||undefined, topicId:topicId||undefined, actionIds:selActions, channelIds:selChannels as any, audienceIds:selAudiences, policyId:policyId||undefined, arbitration: arbitration as any, priority: priority as any, status: status as any, eligibilityRules: [] };
     if (strategy) updateStrategy(strategy.id, payload);
     else addStrategy(payload);
     setSaved(true); setTimeout(onClose, 500);
