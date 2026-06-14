@@ -148,11 +148,16 @@ export default function SeedPage() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
             {result.seeded && Object.entries(result.seeded).map(([k, v]) => (
-              <div key={k} style={{ background: 'var(--bg-secondary)', borderRadius: 6, padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{k.replace(/_/g, ' ')}</span>
-                <span style={{ fontWeight: 700, fontSize: 13, color: typeof v === 'string' && v.startsWith('error') ? '#e53935' : 'var(--success)' }}>
-                  {typeof v === 'string' && v.startsWith('error') ? '✗' : `+${v}`}
-                </span>
+              <div key={k} style={{ background: 'var(--bg-secondary)', borderRadius: 6, padding: '8px 12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{k.replace(/_/g, ' ')}</span>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: typeof v === 'string' && v.startsWith('error') ? '#e53935' : 'var(--success)' }}>
+                    {typeof v === 'string' && v.startsWith('error') ? '✗' : `+${v}`}
+                  </span>
+                </div>
+                {typeof v === 'string' && v.startsWith('error') && (
+                  <div style={{ fontSize: 10, color: '#e53935', marginTop: 2, wordBreak: 'break-all' }}>{v}</div>
+                )}
               </div>
             ))}
           </div>
