@@ -10,6 +10,7 @@ import {
   Users, Brain, Cpu, Activity, Settings, LogOut,
   ChevronRight, Database, UserCheck, Zap, Sparkles,
   UserSearch, FlaskConical, BarChart3, Key, ScrollText, Wand2,
+  Share2, Workflow,
 } from 'lucide-react';
 
 const NAV_SECTIONS = [
@@ -34,12 +35,15 @@ const NAV_SECTIONS = [
       { href: '/simulate',  label: 'Simulation',        icon: Cpu,          permission: 'simulate:read' },
       { href: '/analytics', label: 'Analytics',         icon: BarChart3,    permission: 'analytics:read' },
       { href: '/copilot',   label: 'AI Co-pilot',       icon: Wand2,        permission: null },
+      { href: '/dataflow',  label: 'Decision Dataflow',  icon: Workflow,     permission: null },
     ],
   },
   {
     label: 'Operations',
     items: [
-      { href: '/operations',label: 'Operations',     icon: Activity,        permission: 'operations:read' },
+      { href: '/car',        label: 'CAR / Profiles',    icon: Database,        permission: null },
+      { href: '/seed',       label: 'Demo Data Seeder',  icon: Share2,          permission: null },
+      { href: '/operations', label: 'Operations',        icon: Activity,        permission: 'operations:read' },
       { href: '/triggers',  label: 'Event Triggers',  icon: Zap,            permission: 'triggers:read' },
       { href: '/apikeys',   label: 'API Keys',        icon: Key,            permission: 'settings:read' },
       { href: '/audit',     label: 'Audit Log',       icon: ScrollText,     permission: 'settings:read' },
