@@ -225,16 +225,21 @@ export default function SimulatorPage() {
           )}
 
           <div className="field-group" style={{ marginBottom:0 }}>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
-              <label className="label" style={{ margin:0 }}>Customer ID</label>
+            <label className="label">Customer ID</label>
+            <div style={{ display:'flex', gap:8 }}>
+              <input className="input" value={customerId}
+                onChange={e=>{ setCustomerId(e.target.value); setProfileBadge(null); }}
+                onBlur={() => { if (customerId.trim()) loadProfile(); }}
+                onKeyDown={e=>{ if(e.key==='Enter') { loadProfile(); } }}
+                placeholder="e.g. cust-001" style={{ flex:1 }} />
               <button onClick={loadProfile} disabled={!customerId.trim() || profileLoading}
-                style={{ fontSize:11, color:'var(--brand-accent)', background:'none', border:'none', cursor:'pointer', padding:0, display:'flex', alignItems:'center', gap:4 }}>
-                {profileLoading ? <Loader2 size={11} style={{ animation:'spin 1s linear infinite' }}/> : null}
-                Load profile
+                className="btn btn-secondary btn-sm" style={{ whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:4 }}>
+                {profileLoading
+                  ? <Loader2 size={11} style={{ animation:'spin 1s linear infinite' }}/>
+                  : <Database size={11}/>}
+                Load
               </button>
             </div>
-            <input className="input" value={customerId} onChange={e=>{ setCustomerId(e.target.value); setProfileBadge(null); }}
-              onKeyDown={e=>e.key==='Enter'&&run()} placeholder="e.g. CUST-00123456" />
             {profileBadge && (
               <div style={{ marginTop:4 }}>
                 <span className={`badge ${profileBadge.startsWith('Profile loaded') ? 'badge-green' : 'badge-amber'}`} style={{ fontSize:10 }}>
@@ -242,6 +247,7 @@ export default function SimulatorPage() {
                 </span>
               </div>
             )}
+            <div className="field-hint">Profile attributes auto-load on focus-out. Seeded IDs: cust-001 through cust-006.</div>
           </div>
 
           {mode === 'single' && (
