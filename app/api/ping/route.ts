@@ -21,8 +21,19 @@ export async function GET() {
   try {
     const key = svc || anon;
     const client = createClient(url, key);
-    const { error } = await client.from('customer_profiles').select('customer_id').limit(1);
-    info.db_test = error ? `error: ${error.message}` : 'ok';
+
+    // Test 1: basic connectivity with a known-safe table
+    const t1 = await client.from('strategies').select('id').limit(1);
+    // Test 2: customer_profiles table
+    const t2 = await client.from('customer_profiles').select('customer_id').limit(1);
+    // Test 3: action_categories table
+    const t3 = await client.from('action_categories').select('id').limit(1);
+
+    info.db_test = {
+      strategies:        t1.error ? t1.error.message : 'ok',
+      customer_profiles: t2.error ? t2.error.message : 'ok',
+      action_categories: t3.error ? t3.error.message : 'ok',
+    };
   } catch (e: unknown) {
     info.db_test = `exception: ${e instanceof Error ? e.message : String(e)}`;
   }
