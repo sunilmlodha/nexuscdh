@@ -18,11 +18,19 @@ interface DecisionResult {
   demo?: boolean;
   error?: string;
   message?: string;
+  // Global NBA fields
+  decisionId?: string;
+  strategiesEvaluated?: number;
+  served_count?: number;
+  suppressed_count?: number;
+  no_match_count?: number;
+  winning_strategy?: string;
 }
 
 export default function SimulatorPage() {
   const { strategies, actions } = useStore();
   const canWrite = usePermission('simulator:write');
+  const [mode, setMode] = useState<'single' | 'global'>('single');
   const [customerId, setCustomerId] = useState('');
   const [attrs, setAttrs] = useState<{key:string;val:string}[]>([
     {key:'consentGiven', val:'true'},
@@ -35,6 +43,17 @@ export default function SimulatorPage() {
   const [result, setResult] = useState<DecisionResult|null>(null);
   const [history, setHistory] = useState<(DecisionResult & {customerId:string;strategyId:string;ts:string})[]>([]);
 
+  // Outcome state
+  const [outcomeRecorded, setOutcomeRecorded] = useState(false);
+  const [outcomeLoading, setOutcomeLoading] = useState(false);
+
+  // Profile loader state
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileBadge, setProfileBadge] = useState<string|null>(null);
+
+  // Propensity threshold
+  const [minPropensity, setMinPropensity] = useState(0.1);
+
   const activeStrategies = strategies.filter(s => s.status === 'active');
 
   const buildAttributes = () => {
@@ -46,25 +65,38 @@ export default function SimulatorPage() {
       else if (!isNaN(+val) && val !== '') out[key] = +val;
       else out[key] = val;
     }
+    out['min_propensity_threshold'] = minPropensity;
     return out;
   };
 
   const run = async () => {
-    if (!customerId.trim() || !selStrategy) return;
-    setRunning(true); setResult(null);
+    if (!customerId.trim()) return;
+    if (mode === 'single' && !selStrategy) return;
+    setRunning(true); setResult(null); setOutcomeRecorded(false);
 
     try {
-      const res = await fetch('/api/decide', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerId: customerId.trim(),
-          strategyId: selStrategy,
-          attributes: buildAttributes(),
-        }),
-      });
+      let data: DecisionResult;
 
-      const data: DecisionResult = await res.json();
+      if (mode === 'global') {
+        const attrsObj = buildAttributes();
+        const attrsParam = encodeURIComponent(JSON.stringify(attrsObj));
+        const res = await fetch(
+          `/api/decide?customerId=${encodeURIComponent(customerId.trim())}&tenantId=default-tenant&attributes=${attrsParam}`
+        );
+        data = await res.json();
+      } else {
+        const res = await fetch('/api/decide', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerId: customerId.trim(),
+            strategyId: selStrategy,
+            attributes: buildAttributes(),
+          }),
+        });
+        data = await res.json();
+      }
+
       setResult(data);
 
       if (!data.error || data.demo === false) {
@@ -81,6 +113,55 @@ export default function SimulatorPage() {
       setResult({ served:false, suppressionReason:'Network error', strategyName:'', latencyMs:0, error:'fetch failed' });
     }
     setRunning(false);
+  };
+
+  const recordOutcome = async (outcome: 'accepted' | 'rejected' | 'ignored') => {
+    if (!result?.decisionId) return;
+    setOutcomeLoading(true);
+    try {
+      await fetch('/api/outcome', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decisionId: result.decisionId, customerId: customerId.trim(), outcome }),
+      });
+      setOutcomeRecorded(true);
+    } catch {
+      setOutcomeRecorded(true); // show recorded anyway
+    }
+    setOutcomeLoading(false);
+  };
+
+  const loadProfile = async () => {
+    if (!customerId.trim()) return;
+    setProfileLoading(true);
+    setProfileBadge(null);
+    try {
+      const res = await fetch(`/api/profile?customerId=${encodeURIComponent(customerId.trim())}&tenantId=default-tenant`);
+      if (res.ok) {
+        const data = await res.json();
+        const profile = data.profile ?? data;
+        if (profile?.attributes && typeof profile.attributes === 'object') {
+          const newAttrs = Object.entries(profile.attributes).map(([key, val]) => ({ key, val: String(val) }));
+          setAttrs(prev => {
+            const merged = [...prev];
+            for (const na of newAttrs) {
+              const idx = merged.findIndex(a => a.key === na.key);
+              if (idx >= 0) merged[idx] = na;
+              else merged.push(na);
+            }
+            return merged;
+          });
+          setProfileBadge(`Profile loaded (${newAttrs.length} attrs)`);
+        } else {
+          setProfileBadge('No profile found');
+        }
+      } else {
+        setProfileBadge('No profile found');
+      }
+    } catch {
+      setProfileBadge('Load failed');
+    }
+    setProfileLoading(false);
   };
 
   return (
@@ -122,26 +203,63 @@ export default function SimulatorPage() {
         <div className="card card-body" style={{ display:'flex', flexDirection:'column', gap:16 }}>
           <div style={{ fontWeight:700, fontSize:14, borderBottom:'1px solid var(--border)', paddingBottom:10, marginBottom:4 }}>Customer Profile</div>
 
-          <div className="field-group" style={{ marginBottom:0 }}>
-            <label className="label">Customer ID</label>
-            <input className="input" value={customerId} onChange={e=>setCustomerId(e.target.value)}
-              onKeyDown={e=>e.key==='Enter'&&run()} placeholder="e.g. CUST-00123456" />
+          {/* Mode toggle */}
+          <div style={{ display:'flex', gap:0, border:'1px solid var(--border)', borderRadius:8, overflow:'hidden', alignSelf:'flex-start' }}>
+            {(['single', 'global'] as const).map(m => (
+              <button key={m} onClick={() => setMode(m)}
+                style={{
+                  padding:'6px 14px', fontSize:12, fontWeight:600, cursor:'pointer', border:'none',
+                  background: mode === m ? 'var(--brand-accent)' : 'transparent',
+                  color: mode === m ? 'white' : 'var(--text-secondary)',
+                  transition:'background 0.15s, color 0.15s',
+                }}>
+                {m === 'single' ? 'Single Strategy' : 'Global NBA'}
+              </button>
+            ))}
           </div>
 
+          {mode === 'global' && (
+            <div className="alert alert-info" style={{ fontSize:12 }}>
+              Evaluates all active strategies and returns the best action
+            </div>
+          )}
+
           <div className="field-group" style={{ marginBottom:0 }}>
-            <label className="label">Strategy</label>
-            <select className="input select" value={selStrategy} onChange={e=>setSelStrategy(e.target.value)}>
-              <option value="">Select strategy…</option>
-              {activeStrategies.length === 0
-                ? <option disabled>No active strategies — create one first</option>
-                : activeStrategies.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-            {activeStrategies.length === 0 && (
-              <div className="field-hint">
-                <Link href="/strategies" style={{ color:'var(--brand-accent)' }}>Create a strategy</Link> first, then come back here.
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
+              <label className="label" style={{ margin:0 }}>Customer ID</label>
+              <button onClick={loadProfile} disabled={!customerId.trim() || profileLoading}
+                style={{ fontSize:11, color:'var(--brand-accent)', background:'none', border:'none', cursor:'pointer', padding:0, display:'flex', alignItems:'center', gap:4 }}>
+                {profileLoading ? <Loader2 size={11} style={{ animation:'spin 1s linear infinite' }}/> : null}
+                Load profile
+              </button>
+            </div>
+            <input className="input" value={customerId} onChange={e=>{ setCustomerId(e.target.value); setProfileBadge(null); }}
+              onKeyDown={e=>e.key==='Enter'&&run()} placeholder="e.g. CUST-00123456" />
+            {profileBadge && (
+              <div style={{ marginTop:4 }}>
+                <span className={`badge ${profileBadge.startsWith('Profile loaded') ? 'badge-green' : 'badge-amber'}`} style={{ fontSize:10 }}>
+                  {profileBadge}
+                </span>
               </div>
             )}
           </div>
+
+          {mode === 'single' && (
+            <div className="field-group" style={{ marginBottom:0 }}>
+              <label className="label">Strategy</label>
+              <select className="input select" value={selStrategy} onChange={e=>setSelStrategy(e.target.value)}>
+                <option value="">Select strategy…</option>
+                {activeStrategies.length === 0
+                  ? <option disabled>No active strategies — create one first</option>
+                  : activeStrategies.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+              {activeStrategies.length === 0 && (
+                <div className="field-hint">
+                  <Link href="/strategies" style={{ color:'var(--brand-accent)' }}>Create a strategy</Link> first, then come back here.
+                </div>
+              )}
+            </div>
+          )}
 
           <div>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
@@ -163,7 +281,20 @@ export default function SimulatorPage() {
             <div className="field-hint">Set consentGiven=false to test suppression. Attributes map to customer profile fields.</div>
           </div>
 
-          <button onClick={run} disabled={!customerId.trim()||!selStrategy||running||!canWrite}
+          {/* Propensity threshold slider */}
+          <div>
+            <label className="label" style={{ marginBottom:6 }}>
+              Min propensity: <span style={{ fontFamily:'var(--font-mono)', fontWeight:700 }}>{minPropensity.toFixed(2)}</span>
+            </label>
+            <input type="range" min={0} max={1} step={0.05} value={minPropensity}
+              onChange={e => setMinPropensity(parseFloat(e.target.value))}
+              style={{ width:'100%', accentColor:'var(--brand-accent)' }} />
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'var(--text-muted)', marginTop:2 }}>
+              <span>0.00</span><span>0.50</span><span>1.00</span>
+            </div>
+          </div>
+
+          <button onClick={run} disabled={!customerId.trim()||(mode==='single'&&!selStrategy)||running||!canWrite}
             className="btn btn-primary" style={{ justifyContent:'center' }}>
             {running
               ? <><Loader2 size={15} style={{ animation:'spin 1s linear infinite' }}/> Running decision…</>
@@ -182,7 +313,13 @@ export default function SimulatorPage() {
                     ? <CheckCircle2 size={20} color="var(--success)" />
                     : <AlertTriangle size={20} color="var(--warning)" />}
                 <span style={{ fontWeight:800, fontSize:16, letterSpacing:'-0.3px' }}>
-                  {result.error ? 'Engine Error' : result.served ? 'Action Served' : 'Decision Suppressed'}
+                  {result.error
+                    ? 'Engine Error'
+                    : mode === 'global' && result.served
+                      ? 'Global NBA Decision'
+                      : result.served
+                        ? 'Action Served'
+                        : 'Decision Suppressed'}
                 </span>
                 <span style={{ fontSize:11, color:'var(--text-muted)', marginLeft:'auto', display:'flex', alignItems:'center', gap:3 }}>
                   <Clock size={10}/>{result.latencyMs}ms
@@ -199,6 +336,17 @@ export default function SimulatorPage() {
                 </div>
               ) : result.served ? (
                 <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {mode === 'global' && result.winning_strategy && (
+                    <div style={{ padding:'8px 12px', background:'var(--bg, #F8F9FA)', borderRadius:7, marginBottom:4, fontSize:12 }}>
+                      <span style={{ color:'var(--text-muted)' }}>Winning strategy: </span>
+                      <span style={{ fontWeight:700 }}>{result.winning_strategy}</span>
+                      {(result.served_count !== undefined || result.suppressed_count !== undefined || result.no_match_count !== undefined) && (
+                        <span style={{ marginLeft:8, color:'var(--text-muted)' }}>
+                          ({result.served_count ?? 0} served | {result.suppressed_count ?? 0} suppressed | {result.no_match_count ?? 0} no match)
+                        </span>
+                      )}
+                    </div>
+                  )}
                   {[
                     { label:'Action', value: result.action!.name },
                     { label:'Headline', value: result.action!.headline ?? '—' },
@@ -252,6 +400,33 @@ export default function SimulatorPage() {
                       <span style={{ color:'var(--text-secondary)' }}>{t.outcome}</span>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Outcome buttons */}
+              {result.decisionId && (
+                <div style={{ marginTop:12, borderTop:'1px solid var(--border)', paddingTop:12 }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:8 }}>Record Outcome</div>
+                  {outcomeRecorded ? (
+                    <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:'var(--success, #16A34A)' }}>
+                      <CheckCircle2 size={13}/> Outcome recorded ✓
+                    </div>
+                  ) : (
+                    <div style={{ display:'flex', gap:8 }}>
+                      <button onClick={() => recordOutcome('accepted')} disabled={outcomeLoading}
+                        style={{ flex:1, padding:'7px 0', fontSize:12, fontWeight:600, borderRadius:7, border:'none', cursor:'pointer', background:'#DCFCE7', color:'#166534' }}>
+                        ✓ Accepted
+                      </button>
+                      <button onClick={() => recordOutcome('rejected')} disabled={outcomeLoading}
+                        style={{ flex:1, padding:'7px 0', fontSize:12, fontWeight:600, borderRadius:7, border:'none', cursor:'pointer', background:'#FEE2E2', color:'#991B1B' }}>
+                        ✗ Rejected
+                      </button>
+                      <button onClick={() => recordOutcome('ignored')} disabled={outcomeLoading}
+                        style={{ flex:1, padding:'7px 0', fontSize:12, fontWeight:600, borderRadius:7, border:'none', cursor:'pointer', background:'#F3F4F6', color:'#6B7280' }}>
+                        — Ignored
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

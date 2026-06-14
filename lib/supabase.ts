@@ -3,29 +3,27 @@
  *
  * Setup:
  *   1. Create a free project at https://supabase.com
- *   2. Run supabase/schema.sql in your project's SQL editor
- *   3. Copy your project URL and anon key from Settings → API
+ *   2. Run supabase/schema.sql then supabase/schema_v2.sql
+ *   3. Copy URL + anon key from Settings → API
  *   4. Add to .env.local:
  *        NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
  *        NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
  *   5. Restart: npm run dev -- -p 3100
- *
- * Until configured, all API calls return empty/mock data (graceful fallback).
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { randomBytes, createHash } from 'crypto';
 
-const URL  = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? '';
-const KEY  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+const URL = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? '';
+const KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 export const IS_CONFIGURED = Boolean(URL && KEY);
 
-// Gracefully return null client when not configured (dev/demo mode)
 export const supabase: SupabaseClient | null = IS_CONFIGURED
   ? createClient(URL, KEY)
   : null;
 
-// ── Database types (mirrors schema.sql) ──────────────────────────────────────
+// ── Database types ────────────────────────────────────────────────────────────
 
 export interface DBStrategy {
   id: string;
@@ -37,6 +35,7 @@ export interface DBStrategy {
   action_ids: string[];
   channel_ids: string[];
   audience_ids: string[];
+  eligibility_rules?: Array<{ attribute: string; op: string; value: string }>;
   policy_id?: string;
   model_id?: string;
   arbitration: 'propensity' | 'value' | 'weighted' | 'random_ab';
@@ -97,31 +96,119 @@ export interface DBDecisionLog {
   outcome?: 'accepted' | 'rejected' | 'ignored';
   customer_attributes: Record<string, unknown>;
   trace: unknown[];
+  decision_latency_ms?: number;
+  experiment_id?: string;
+  variant_name?: string;
   created_at: string;
 }
 
-// ── CRUD helpers ──────────────────────────────────────────────────────────────
+export interface DBCustomerProfile {
+  id: string;
+  tenant_id: string;
+  customer_id: string;
+  attributes: Record<string, unknown>;
+  segments: string[];
+  interaction_count: number;
+  last_seen_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DBApiKey {
+  id: string;
+  tenant_id: string;
+  name: string;
+  key_prefix: string;
+  key_hash: string;
+  created_by?: string;
+  last_used_at?: string;
+  status: 'active' | 'revoked';
+  created_at: string;
+}
+
+export interface DBExperiment {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description?: string;
+  status: 'draft' | 'running' | 'paused' | 'completed';
+  variants: Array<{ strategyId: string; name: string; trafficPct: number }>;
+  traffic_split: Record<string, number>;
+  winner_strategy_id?: string;
+  start_date?: string;
+  end_date?: string;
+  auto_promote: boolean;
+  promotion_threshold: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DBBatchJob {
+  id: string;
+  tenant_id: string;
+  name: string;
+  strategy_ids: string[];
+  channel_id?: string;
+  audience_id?: string;
+  schedule_cron?: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  run_at?: string;
+  completed_at?: string;
+  total_customers: number;
+  served_count: number;
+  suppressed_count: number;
+  error_message?: string;
+  created_at: string;
+}
+
+export interface DBConfigAudit {
+  id: string;
+  tenant_id: string;
+  entity_type: string;
+  entity_id: string;
+  entity_name?: string;
+  action: 'created' | 'updated' | 'deleted' | 'activated' | 'paused' | 'promoted';
+  changed_by?: string;
+  before_snapshot?: Record<string, unknown>;
+  after_snapshot?: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface DBEventTrigger {
+  id: string;
+  tenant_id: string;
+  name: string;
+  event_type: string;
+  event_conditions: Record<string, unknown>;
+  strategy_ids: string[];
+  channel_ids: string[];
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Core CRUD helpers ─────────────────────────────────────────────────────────
 
 const DEFAULT_TENANT = 'default-tenant';
 
 export async function fetchStrategies(tenantId = DEFAULT_TENANT): Promise<DBStrategy[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
-    .from('strategies')
-    .select('*')
-    .eq('tenant_id', tenantId)
+    .from('strategies').select('*').eq('tenant_id', tenantId)
     .order('created_at', { ascending: false });
   if (error) { console.error('fetchStrategies:', error); return []; }
   return data ?? [];
 }
 
-export async function upsertStrategy(strategy: Partial<DBStrategy> & { name: string }, tenantId = DEFAULT_TENANT): Promise<DBStrategy | null> {
+export async function upsertStrategy(
+  strategy: Partial<DBStrategy> & { name: string },
+  tenantId = DEFAULT_TENANT
+): Promise<DBStrategy | null> {
   if (!supabase) return null;
   const { data, error } = await supabase
     .from('strategies')
     .upsert({ ...strategy, tenant_id: tenantId, updated_at: new Date().toISOString() })
-    .select()
-    .single();
+    .select().single();
   if (error) { console.error('upsertStrategy:', error); return null; }
   return data;
 }
@@ -129,10 +216,7 @@ export async function upsertStrategy(strategy: Partial<DBStrategy> & { name: str
 export async function fetchActions(tenantId = DEFAULT_TENANT): Promise<DBAction[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
-    .from('actions')
-    .select('*')
-    .eq('tenant_id', tenantId)
-    .eq('status', 'active');
+    .from('actions').select('*').eq('tenant_id', tenantId).eq('status', 'active');
   if (error) { console.error('fetchActions:', error); return []; }
   return data ?? [];
 }
@@ -140,9 +224,7 @@ export async function fetchActions(tenantId = DEFAULT_TENANT): Promise<DBAction[
 export async function fetchPolicies(tenantId = DEFAULT_TENANT): Promise<DBContactPolicy[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
-    .from('contact_policies')
-    .select('*')
-    .eq('tenant_id', tenantId);
+    .from('contact_policies').select('*').eq('tenant_id', tenantId);
   if (error) { console.error('fetchPolicies:', error); return []; }
   return data ?? [];
 }
@@ -150,12 +232,14 @@ export async function fetchPolicies(tenantId = DEFAULT_TENANT): Promise<DBContac
 export async function insertDecisionLog(
   record: Omit<DBDecisionLog, 'id' | 'created_at'>,
   tenantId = DEFAULT_TENANT
-): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase
+): Promise<string | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase
     .from('decision_log')
-    .insert({ ...record, tenant_id: tenantId });
-  if (error) console.error('insertDecisionLog:', error);
+    .insert({ ...record, tenant_id: tenantId })
+    .select('id').single();
+  if (error) { console.error('insertDecisionLog:', error); return null; }
+  return data?.id ?? null;
 }
 
 export async function fetchDecisionLog(
@@ -164,13 +248,20 @@ export async function fetchDecisionLog(
 ): Promise<DBDecisionLog[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
-    .from('decision_log')
-    .select('*')
-    .eq('tenant_id', tenantId)
-    .order('created_at', { ascending: false })
-    .limit(limit);
+    .from('decision_log').select('*').eq('tenant_id', tenantId)
+    .order('created_at', { ascending: false }).limit(limit);
   if (error) { console.error('fetchDecisionLog:', error); return []; }
   return data ?? [];
+}
+
+export async function updateDecisionOutcome(
+  decisionId: string,
+  outcome: 'accepted' | 'rejected' | 'ignored'
+): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase
+    .from('decision_log').update({ outcome }).eq('id', decisionId);
+  if (error) console.error('updateDecisionOutcome:', error);
 }
 
 export async function getContactCounts(
@@ -196,8 +287,199 @@ export async function incrementContactCount(
 ): Promise<void> {
   if (!supabase) return;
   await supabase.rpc('increment_contact_count', {
-    p_tenant_id:  tenantId,
+    p_tenant_id: tenantId,
     p_customer_id: customerId,
     p_channel_id: channelId,
   });
+}
+
+// ── Customer Profiles ─────────────────────────────────────────────────────────
+
+export async function fetchCustomerProfile(
+  tenantId: string,
+  customerId: string
+): Promise<DBCustomerProfile | null> {
+  if (!supabase) return null;
+  const { data } = await supabase
+    .from('customer_profiles').select('*')
+    .eq('tenant_id', tenantId).eq('customer_id', customerId).single();
+  return data ?? null;
+}
+
+export async function fetchCustomerProfiles(
+  tenantId = DEFAULT_TENANT,
+  limit = 100
+): Promise<DBCustomerProfile[]> {
+  if (!supabase) return [];
+  const { data } = await supabase
+    .from('customer_profiles').select('*').eq('tenant_id', tenantId)
+    .order('last_seen_at', { ascending: false }).limit(limit);
+  return data ?? [];
+}
+
+export async function upsertCustomerProfile(
+  tenantId: string,
+  customerId: string,
+  attributes: Record<string, unknown>
+): Promise<void> {
+  if (!supabase) return;
+  await supabase.rpc('upsert_customer_profile', {
+    p_tenant_id: tenantId,
+    p_customer_id: customerId,
+    p_attributes: attributes,
+  });
+}
+
+export async function deleteCustomerProfile(
+  tenantId: string,
+  customerId: string
+): Promise<number> {
+  if (!supabase) return 0;
+  await supabase.from('customer_profiles').delete()
+    .eq('tenant_id', tenantId).eq('customer_id', customerId);
+  const { count } = await supabase.from('decision_log')
+    .delete({ count: 'exact' })
+    .eq('tenant_id', tenantId).eq('customer_id', customerId);
+  return count ?? 0;
+}
+
+// ── API Keys ──────────────────────────────────────────────────────────────────
+
+export async function createApiKey(
+  tenantId: string,
+  name: string,
+  createdBy?: string
+): Promise<{ key: string; record: DBApiKey } | null> {
+  if (!supabase) return null;
+  const raw        = 'ncdh_' + randomBytes(32).toString('hex');
+  const key_prefix = raw.substring(0, 12);
+  const key_hash   = createHash('sha256').update(raw).digest('hex');
+  const { data, error } = await supabase
+    .from('api_keys')
+    .insert({ tenant_id: tenantId, name, key_prefix, key_hash, created_by: createdBy, status: 'active' })
+    .select().single();
+  if (error) { console.error('createApiKey:', error); return null; }
+  return { key: raw, record: data };
+}
+
+export async function listApiKeys(tenantId = DEFAULT_TENANT): Promise<DBApiKey[]> {
+  if (!supabase) return [];
+  const { data } = await supabase
+    .from('api_keys').select('*').eq('tenant_id', tenantId)
+    .order('created_at', { ascending: false });
+  return data ?? [];
+}
+
+export async function revokeApiKey(id: string): Promise<void> {
+  if (!supabase) return;
+  await supabase.from('api_keys').update({ status: 'revoked' }).eq('id', id);
+}
+
+export async function validateApiKey(
+  keyPrefix: string,
+  fullKey: string,
+  tenantId: string
+): Promise<boolean> {
+  if (!supabase) return false;
+  const key_hash = createHash('sha256').update(fullKey).digest('hex');
+  const { data } = await supabase
+    .from('api_keys').select('id')
+    .eq('tenant_id', tenantId).eq('key_prefix', keyPrefix)
+    .eq('key_hash', key_hash).eq('status', 'active').single();
+  if (!data) return false;
+  await supabase.from('api_keys')
+    .update({ last_used_at: new Date().toISOString() }).eq('id', data.id);
+  return true;
+}
+
+// ── Experiments ───────────────────────────────────────────────────────────────
+
+export async function fetchExperiments(tenantId = DEFAULT_TENANT): Promise<DBExperiment[]> {
+  if (!supabase) return [];
+  const { data } = await supabase
+    .from('experiments').select('*').eq('tenant_id', tenantId)
+    .order('created_at', { ascending: false });
+  return data ?? [];
+}
+
+export async function upsertExperiment(
+  exp: Partial<DBExperiment> & { name: string },
+  tenantId = DEFAULT_TENANT
+): Promise<DBExperiment | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('experiments')
+    .upsert({ ...exp, tenant_id: tenantId, updated_at: new Date().toISOString() })
+    .select().single();
+  if (error) { console.error('upsertExperiment:', error); return null; }
+  return data;
+}
+
+// ── Batch Jobs ────────────────────────────────────────────────────────────────
+
+export async function fetchBatchJobs(tenantId = DEFAULT_TENANT): Promise<DBBatchJob[]> {
+  if (!supabase) return [];
+  const { data } = await supabase
+    .from('batch_jobs').select('*').eq('tenant_id', tenantId)
+    .order('created_at', { ascending: false });
+  return data ?? [];
+}
+
+export async function upsertBatchJob(
+  job: Partial<DBBatchJob> & { name: string },
+  tenantId = DEFAULT_TENANT
+): Promise<DBBatchJob | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('batch_jobs').upsert({ ...job, tenant_id: tenantId }).select().single();
+  if (error) { console.error('upsertBatchJob:', error); return null; }
+  return data;
+}
+
+// ── Config Audit Log ──────────────────────────────────────────────────────────
+
+export async function insertConfigAudit(
+  record: Omit<DBConfigAudit, 'id' | 'created_at'>,
+  tenantId = DEFAULT_TENANT
+): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase
+    .from('config_audit_log').insert({ ...record, tenant_id: tenantId });
+  if (error) console.error('insertConfigAudit:', error);
+}
+
+export async function fetchConfigAudit(
+  tenantId = DEFAULT_TENANT,
+  entityType?: string,
+  limit = 50
+): Promise<DBConfigAudit[]> {
+  if (!supabase) return [];
+  let q = supabase.from('config_audit_log').select('*')
+    .eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(limit);
+  if (entityType) q = q.eq('entity_type', entityType);
+  const { data } = await q;
+  return data ?? [];
+}
+
+// ── Event Triggers ────────────────────────────────────────────────────────────
+
+export async function fetchEventTriggers(tenantId = DEFAULT_TENANT): Promise<DBEventTrigger[]> {
+  if (!supabase) return [];
+  const { data } = await supabase
+    .from('event_triggers').select('*').eq('tenant_id', tenantId)
+    .order('created_at', { ascending: false });
+  return data ?? [];
+}
+
+export async function upsertEventTrigger(
+  trigger: Partial<DBEventTrigger> & { name: string; event_type: string },
+  tenantId = DEFAULT_TENANT
+): Promise<DBEventTrigger | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('event_triggers')
+    .upsert({ ...trigger, tenant_id: tenantId, updated_at: new Date().toISOString() })
+    .select().single();
+  if (error) { console.error('upsertEventTrigger:', error); return null; }
+  return data;
 }

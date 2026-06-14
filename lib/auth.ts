@@ -7,16 +7,16 @@
  *
  * Roles & Permissions matrix:
  *
- *   Role                  | Dashboard | Taxonomy | Strategies | Channels | Policies | Audiences | Models | Simulator | Operations | Users | Settings |
- *   ──────────────────────|──────────|──────────|────────────|──────────|──────────|───────────|────────|───────────|────────────|───────|──────────|
- *   super_admin           |    R/W   |   R/W    |    R/W     |   R/W    |   R/W    |    R/W    |  R/W   |    R/W    |    R/W     |  R/W  |   R/W    |
- *   tenant_admin          |    R/W   |   R/W    |    R/W     |   R/W    |   R/W    |    R/W    |  R/W   |    R/W    |    R/W     |  R/W  |   R/W    |
- *   strategy_manager      |    R     |   R/W    |    R/W     |   R      |   R/W    |    R/W    |  R     |    R/W    |    R       |  -    |   -      |
- *   campaign_analyst      |    R     |   R      |    R       |   R      |   R      |    R      |  R     |    R/W    |    R       |  -    |   -      |
- *   channel_manager       |    R     |   R      |    R       |   R/W    |   R/W    |    R      |  R     |    R      |    R       |  -    |   -      |
- *   data_scientist        |    R     |   R      |    R       |   R      |   R      |    R/W    |  R/W   |    R/W    |    R       |  -    |   -      |
- *   ops_manager           |    R     |   R      |    R       |   R      |   R      |    R      |  R     |    R      |    R/W     |  -    |   R      |
- *   read_only             |    R     |   R      |    R       |   R      |   R      |    R      |  R     |    R      |    R       |  -    |   -      |
+ *   Role                  | Dashboard | Taxonomy | Strategies | Channels | Policies | Audiences | Models | Simulator | Operations | Users | Settings | Profiles | Experiments |
+ *   ──────────────────────|──────────|──────────|────────────|──────────|──────────|───────────|────────|───────────|────────────|───────|──────────|──────────|─────────────|
+ *   super_admin           |    R/W   |   R/W    |    R/W     |   R/W    |   R/W    |    R/W    |  R/W   |    R/W    |    R/W     |  R/W  |   R/W    |   R/W    |     R/W     |
+ *   tenant_admin          |    R/W   |   R/W    |    R/W     |   R/W    |   R/W    |    R/W    |  R/W   |    R/W    |    R/W     |  R/W  |   R/W    |   R/W    |     R/W     |
+ *   strategy_manager      |    R     |   R/W    |    R/W     |   R      |   R/W    |    R/W    |  R     |    R/W    |    R       |  -    |   -      |   -      |     R/W     |
+ *   campaign_analyst      |    R     |   R      |    R       |   R      |   R      |    R      |  R     |    R/W    |    R       |  -    |   -      |   -      |     R       |
+ *   channel_manager       |    R     |   R      |    R       |   R/W    |   R/W    |    R      |  R     |    R      |    R       |  -    |   -      |   -      |     -       |
+ *   data_scientist        |    R     |   R      |    R       |   R      |   R      |    R/W    |  R/W   |    R/W    |    R       |  -    |   -      |   R      |     R       |
+ *   ops_manager           |    R     |   R      |    R       |   R      |   R      |    R      |  R     |    R      |    R/W     |  -    |   R      |   R      |     -       |
+ *   read_only             |    R     |   R      |    R       |   R      |   R      |    R      |  R     |    R      |    R       |  -    |   -      |   -      |     -       |
  */
 
 import { create } from 'zustand';
@@ -42,7 +42,9 @@ export type Permission =
   | 'simulator:read'   | 'simulator:write'
   | 'operations:read'  | 'operations:write'
   | 'users:read'       | 'users:write'
-  | 'settings:read'    | 'settings:write';
+  | 'settings:read'    | 'settings:write'
+  | 'profiles:read'    | 'profiles:write'
+  | 'experiments:read' | 'experiments:write';
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   super_admin: [
@@ -51,6 +53,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'audiences:read','audiences:write','models:read','models:write',
     'simulator:read','simulator:write','operations:read','operations:write',
     'users:read','users:write','settings:read','settings:write',
+    'profiles:read','profiles:write','experiments:read','experiments:write',
   ],
   tenant_admin: [
     'taxonomy:read','taxonomy:write','strategies:read','strategies:write',
@@ -58,16 +61,19 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'audiences:read','audiences:write','models:read','models:write',
     'simulator:read','simulator:write','operations:read','operations:write',
     'users:read','users:write','settings:read','settings:write',
+    'profiles:read','profiles:write','experiments:read','experiments:write',
   ],
   strategy_manager: [
     'taxonomy:read','taxonomy:write','strategies:read','strategies:write',
     'channels:read','policies:read','policies:write',
     'audiences:read','audiences:write','models:read',
     'simulator:read','simulator:write','operations:read',
+    'experiments:read','experiments:write',
   ],
   campaign_analyst: [
     'taxonomy:read','strategies:read','channels:read','policies:read',
     'audiences:read','models:read','simulator:read','simulator:write','operations:read',
+    'experiments:read',
   ],
   channel_manager: [
     'taxonomy:read','strategies:read','channels:read','channels:write',
@@ -77,11 +83,13 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'taxonomy:read','strategies:read','channels:read','policies:read',
     'audiences:read','audiences:write','models:read','models:write',
     'simulator:read','simulator:write','operations:read',
+    'profiles:read','experiments:read',
   ],
   ops_manager: [
     'taxonomy:read','strategies:read','channels:read','policies:read',
     'audiences:read','models:read','simulator:read',
     'operations:read','operations:write','settings:read',
+    'profiles:read',
   ],
   read_only: [
     'taxonomy:read','strategies:read','channels:read','policies:read',
