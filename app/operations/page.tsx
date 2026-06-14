@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   CheckCircle2, AlertTriangle, Clock, Trash2, Play, RefreshCw,
-  X, ChevronRight, Loader2,
+  X, ChevronRight, Loader2, Sparkles,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -127,6 +127,32 @@ export default function OperationsPage() {
   // Audit state
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(true);
+
+  // AI explain state
+  const [explaining, setExplaining] = useState<string | null>(null);
+  const [explainResult, setExplainResult] = useState<{ id: string; headline: string; explanation: string; keyFactors: string[]; recommendation: string | null } | null>(null);
+
+  const explainDecision = async (d: DecisionRecord) => {
+    setExplaining(d.id);
+    setExplainResult(null);
+    const r = await fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'explain_decision',
+        context: {
+          actionName: d.action_name ?? 'unknown',
+          strategyName: d.strategy_name,
+          served: d.served,
+          propensity: d.propensity ?? 0,
+          suppressionReason: d.suppression_reason,
+        },
+      }),
+    });
+    const j = await r.json();
+    setExplaining(null);
+    if (r.ok) setExplainResult({ id: d.id, ...j });
+  };
 
   // Modal state
   const [showBatchModal, setShowBatchModal] = useState(false);
@@ -535,10 +561,12 @@ export default function OperationsPage() {
                     <th>Result</th>
                     <th>Propensity</th>
                     <th>Time</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   {decisions.map(d => (
+                    <>
                     <tr key={d.id}>
                       <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{d.customer_id}</td>
                       <td style={{ fontSize: 12 }}>{d.strategy_name}</td>
@@ -561,7 +589,37 @@ export default function OperationsPage() {
                           <Clock size={10} />{timeAgo(d.created_at)}
                         </span>
                       </td>
+                      <td>
+                        <button
+                          onClick={() => explainDecision(d)}
+                          disabled={explaining === d.id}
+                          title="Explain with AI"
+                          style={{ background: 'none', border: '1px solid #e9d5ff', borderRadius: 6, cursor: 'pointer', color: '#7c3aed', padding: '3px 7px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}
+                        >
+                          <Sparkles size={10} /> {explaining === d.id ? '…' : 'Explain'}
+                        </button>
+                      </td>
                     </tr>
+                    {explainResult?.id === d.id && (
+                      <tr key={`${d.id}-explain`}>
+                        <td colSpan={8} style={{ padding: '10px 14px', background: '#f5f3ff', borderBottom: '1px solid #e9d5ff' }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#6d28d9', marginBottom: 4 }}>{explainResult.headline}</div>
+                          <div style={{ fontSize: 12, color: '#4c1d95', marginBottom: 6 }}>{explainResult.explanation}</div>
+                          {explainResult.keyFactors?.length > 0 && (
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+                              {explainResult.keyFactors.map((f, i) => (
+                                <span key={i} style={{ background: '#ede9fe', color: '#5b21b6', borderRadius: 4, padding: '2px 8px', fontSize: 11 }}>{f}</span>
+                              ))}
+                            </div>
+                          )}
+                          {explainResult.recommendation && (
+                            <div style={{ fontSize: 11, color: '#7c3aed', fontStyle: 'italic' }}>💡 {explainResult.recommendation}</div>
+                          )}
+                          <button onClick={() => setExplainResult(null)} style={{ marginTop: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#7c3aed', textDecoration: 'underline' }}>Dismiss</button>
+                        </td>
+                      </tr>
+                    )}
+                    </>
                   ))}
                 </tbody>
               </table>

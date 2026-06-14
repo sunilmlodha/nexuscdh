@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Layers, GitBranch, Radio, Shield,
   Users, Brain, Cpu, Activity, Settings, LogOut,
   ChevronRight, Database, UserCheck, Zap, Sparkles,
-  UserSearch, FlaskConical, BarChart3, Key, ScrollText,
+  UserSearch, FlaskConical, BarChart3, Key, ScrollText, Wand2,
 } from 'lucide-react';
 
 const NAV_SECTIONS = [
@@ -33,6 +33,7 @@ const NAV_SECTIONS = [
       { href: '/experiments',label: 'Experiments',      icon: FlaskConical, permission: 'experiments:read' },
       { href: '/simulate',  label: 'Simulation',        icon: Cpu,          permission: 'simulate:read' },
       { href: '/analytics', label: 'Analytics',         icon: BarChart3,    permission: 'analytics:read' },
+      { href: '/copilot',   label: 'AI Co-pilot',       icon: Wand2,        permission: null },
     ],
   },
   {
