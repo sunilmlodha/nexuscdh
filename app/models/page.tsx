@@ -21,7 +21,7 @@ export default function ModelsPage() {
       const r = await fetch('/api/models/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ decisionId: fbDecisionId.trim(), outcome: fbOutcome, tenantId: 'default-tenant' }),
+        body: JSON.stringify({ decisionId: fbDecisionId.trim(), outcome: fbOutcome, tenantId: 'f0000000-0000-4000-a000-000000000001' }),
       });
       const j = await r.json();
       if (!r.ok) { setFbMsg(j.error ?? 'Failed'); setFbStatus('error'); return; }

@@ -20,7 +20,7 @@ function VersionHistoryPanel({ strategyId, strategyName, onClose }: { strategyId
   const [done, setDone] = useState<number | null>(null);
 
   useState(() => {
-    fetch(`/api/strategies/versions?strategyId=${strategyId}&tenantId=default-tenant`)
+    fetch(`/api/strategies/versions?strategyId=${strategyId}&tenantId=f0000000-0000-4000-a000-000000000001`)
       .then(r => r.json())
       .then(j => { setVersions(j.data ?? []); setLoading(false); })
       .catch(() => setLoading(false));
@@ -32,7 +32,7 @@ function VersionHistoryPanel({ strategyId, strategyName, onClose }: { strategyId
     await fetch('/api/strategies/versions', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ strategyId, version: v.version, tenantId: 'default-tenant' }),
+      body: JSON.stringify({ strategyId, version: v.version, tenantId: 'f0000000-0000-4000-a000-000000000001' }),
     });
     setRolling(null);
     setDone(v.version);

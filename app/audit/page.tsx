@@ -61,7 +61,7 @@ export default function AuditPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({ tenantId: 'default-tenant', limit: '100' });
+    const params = new URLSearchParams({ tenantId: 'f0000000-0000-4000-a000-000000000001', limit: '100' });
     if (filterType) params.set('entityType', filterType);
     const r = await fetch(`/api/audit?${params}`);
     const j = await r.json();

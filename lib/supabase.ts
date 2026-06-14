@@ -14,13 +14,13 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { randomBytes, createHash } from 'crypto';
 
-const URL = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? '';
+const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? '';
 const KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-export const IS_CONFIGURED = Boolean(URL && KEY);
+export const IS_CONFIGURED = Boolean(SUPA_URL && KEY);
 
 export const supabase: SupabaseClient | null = IS_CONFIGURED
-  ? createClient(URL, KEY)
+  ? createClient(SUPA_URL, KEY)
   : null;
 
 // ── Database types ────────────────────────────────────────────────────────────
@@ -189,7 +189,7 @@ export interface DBEventTrigger {
 
 // ── Core CRUD helpers ─────────────────────────────────────────────────────────
 
-const DEFAULT_TENANT = 'default-tenant';
+const DEFAULT_TENANT = 'f0000000-0000-4000-a000-000000000001';
 
 export async function fetchStrategies(tenantId = DEFAULT_TENANT): Promise<DBStrategy[]> {
   if (!supabase) return [];

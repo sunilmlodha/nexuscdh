@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
 
   const {
     strategyId,
-    tenantId = 'default-tenant',
+    tenantId = 'f0000000-0000-4000-a000-000000000001',
     populationSize = 1000,
     useRealProfiles = false,
     seedAttributes = {},

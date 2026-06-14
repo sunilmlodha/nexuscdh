@@ -64,7 +64,7 @@ export default function SimulatePage() {
   const [infoOpen, setInfoOpen] = useState(false);
 
   useEffect(() => {
-    fetch('/api/strategies?tenantId=default-tenant')
+    fetch('/api/strategies?tenantId=f0000000-0000-4000-a000-000000000001')
       .then(r => r.json())
       .then(data => {
         const list: SimStrategy[] = Array.isArray(data) ? data : data.strategies ?? [];
@@ -90,7 +90,7 @@ export default function SimulatePage() {
         strategyId,
         populationSize,
         source: useRealProfiles ? 'real' : 'synthetic',
-        tenantId: 'default-tenant',
+        tenantId: 'f0000000-0000-4000-a000-000000000001',
       };
       if (!useRealProfiles) {
         const attrs: Record<string, string> = {};

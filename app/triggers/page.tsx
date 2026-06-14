@@ -140,7 +140,7 @@ export default function TriggersPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const r = await fetch('/api/triggers?tenantId=default-tenant');
+      const r = await fetch('/api/triggers?tenantId=f0000000-0000-4000-a000-000000000001');
       const j = await r.json();
       setTriggers(j.data ?? []);
     } finally { setLoading(false); }
@@ -148,7 +148,7 @@ export default function TriggersPage() {
   useEffect(() => { load(); }, []);
 
   const save = async (t: EventTrigger) => {
-    await fetch('/api/triggers', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...t, tenantId:'default-tenant' }) });
+    await fetch('/api/triggers', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...t, tenantId:'f0000000-0000-4000-a000-000000000001' }) });
     setShowModal(false); load();
   };
 
@@ -190,7 +190,7 @@ export default function TriggersPage() {
                 {`{
   "eventType": "cart_abandoned",
   "customerId": "cust-001",
-  "tenantId": "default-tenant",
+  "tenantId": "f0000000-0000-4000-a000-000000000001",
   "payload": { "cart_value": 85.50, "items": 3 }
 }`}
               </div>

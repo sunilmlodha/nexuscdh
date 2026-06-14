@@ -4,7 +4,7 @@ import { IS_CONFIGURED, supabase } from '@/lib/supabase';
 // GET /api/strategies/versions?strategyId=xxx — list version history
 export async function GET(req: NextRequest) {
   const strategyId = req.nextUrl.searchParams.get('strategyId') ?? '';
-  const tenantId   = req.nextUrl.searchParams.get('tenantId')   ?? 'default-tenant';
+  const tenantId   = req.nextUrl.searchParams.get('tenantId')   ?? 'f0000000-0000-4000-a000-000000000001';
   if (!IS_CONFIGURED) return NextResponse.json({ data: [], configured: false });
   if (!strategyId)    return NextResponse.json({ error: 'strategyId required' }, { status: 400 });
 
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   let body: { strategyId: string; snapshot: Record<string, unknown>; changedBy?: string; changeSummary?: string; tenantId?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const { strategyId, snapshot, changedBy, changeSummary, tenantId = 'default-tenant' } = body;
+  const { strategyId, snapshot, changedBy, changeSummary, tenantId = 'f0000000-0000-4000-a000-000000000001' } = body;
   if (!strategyId || !snapshot) return NextResponse.json({ error: 'strategyId and snapshot required' }, { status: 400 });
 
   // Get next version number
@@ -56,7 +56,7 @@ export async function PATCH(req: NextRequest) {
   let body: { strategyId: string; version: number; tenantId?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const { strategyId, version, tenantId = 'default-tenant' } = body;
+  const { strategyId, version, tenantId = 'f0000000-0000-4000-a000-000000000001' } = body;
   if (!strategyId || !version) return NextResponse.json({ error: 'strategyId and version required' }, { status: 400 });
 
   const { data: versionRecord } = await supabase!

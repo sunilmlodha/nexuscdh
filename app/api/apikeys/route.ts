@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiKey, listApiKeys, revokeApiKey, IS_CONFIGURED } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
-  const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'default-tenant';
+  const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'f0000000-0000-4000-a000-000000000001';
   if (!IS_CONFIGURED) return NextResponse.json({ data: [], configured: false });
   const keys = await listApiKeys(tenantId);
   return NextResponse.json({ data: keys, configured: true });
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   let body: { name: string; tenantId?: string; createdBy?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const { name, tenantId = 'default-tenant', createdBy } = body;
+  const { name, tenantId = 'f0000000-0000-4000-a000-000000000001', createdBy } = body;
   if (!name?.trim()) return NextResponse.json({ error: 'name required' }, { status: 400 });
 
   const result = await createApiKey(tenantId, name, createdBy);

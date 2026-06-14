@@ -169,7 +169,7 @@ export default function OperationsPage() {
   const fetchDecisions = useCallback(async () => {
     setDecisionsLoading(true);
     try {
-      const res = await fetch('/api/decisions?tenantId=default-tenant&limit=1000');
+      const res = await fetch('/api/decisions?tenantId=f0000000-0000-4000-a000-000000000001&limit=1000');
       const json = await res.json();
       setDecisions(json.data ?? []);
     } catch {
@@ -182,7 +182,7 @@ export default function OperationsPage() {
   const fetchStrategiesData = useCallback(async () => {
     setStrategiesLoading(true);
     try {
-      const res = await fetch('/api/strategies?tenantId=default-tenant');
+      const res = await fetch('/api/strategies?tenantId=f0000000-0000-4000-a000-000000000001');
       const json = await res.json();
       setStrategies(json.data ?? []);
     } catch {
@@ -218,7 +218,7 @@ export default function OperationsPage() {
       {
         name: 'Database',
         fn: async () => {
-          const res = await fetch('/api/strategies?tenantId=default-tenant');
+          const res = await fetch('/api/strategies?tenantId=f0000000-0000-4000-a000-000000000001');
           const json = await res.json();
           return json.configured ? 'operational' : 'idle';
         },
@@ -226,28 +226,28 @@ export default function OperationsPage() {
       {
         name: 'Audit Logger',
         fn: async () => {
-          await fetch('/api/audit?tenantId=default-tenant&limit=1');
+          await fetch('/api/audit?tenantId=f0000000-0000-4000-a000-000000000001&limit=1');
           return 'operational';
         },
       },
       {
         name: 'Batch Processor',
         fn: async () => {
-          await fetch('/api/batch?tenantId=default-tenant');
+          await fetch('/api/batch?tenantId=f0000000-0000-4000-a000-000000000001');
           return 'operational';
         },
       },
       {
         name: 'Profile Store',
         fn: async () => {
-          await fetch('/api/profile?list=true&tenantId=default-tenant');
+          await fetch('/api/profile?list=true&tenantId=f0000000-0000-4000-a000-000000000001');
           return 'operational';
         },
       },
       {
         name: 'Analytics',
         fn: async () => {
-          await fetch('/api/analytics?tenantId=default-tenant');
+          await fetch('/api/analytics?tenantId=f0000000-0000-4000-a000-000000000001');
           return 'operational';
         },
       },
@@ -274,7 +274,7 @@ export default function OperationsPage() {
   const fetchBatchJobs = useCallback(async () => {
     setBatchLoading(true);
     try {
-      const res = await fetch('/api/batch?tenantId=default-tenant');
+      const res = await fetch('/api/batch?tenantId=f0000000-0000-4000-a000-000000000001');
       const json = await res.json();
       setBatchJobs(json.data ?? []);
     } catch {
@@ -287,7 +287,7 @@ export default function OperationsPage() {
   const fetchAuditLog = useCallback(async () => {
     setAuditLoading(true);
     try {
-      const res = await fetch('/api/audit?tenantId=default-tenant&limit=50');
+      const res = await fetch('/api/audit?tenantId=f0000000-0000-4000-a000-000000000001&limit=50');
       const json = await res.json();
       setAuditLog(json.data ?? []);
     } catch {
@@ -345,7 +345,7 @@ export default function OperationsPage() {
           strategyIds: batchForm.strategyIds,
           channelId: batchForm.channelId || undefined,
           runNow: batchForm.runNow,
-          tenantId: 'default-tenant',
+          tenantId: 'f0000000-0000-4000-a000-000000000001',
         }),
       });
       setShowBatchModal(false);

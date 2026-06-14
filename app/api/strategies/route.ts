@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchStrategies, upsertStrategy, insertConfigAudit, IS_CONFIGURED, supabase } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
-  const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'default-tenant';
+  const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'f0000000-0000-4000-a000-000000000001';
   if (!IS_CONFIGURED) return NextResponse.json({ data: [], configured: false });
   const data = await fetchStrategies(tenantId);
   return NextResponse.json({ data, configured: true });
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const tenantId  = (body.tenantId as string) ?? 'default-tenant';
+  const tenantId  = (body.tenantId as string) ?? 'f0000000-0000-4000-a000-000000000001';
   const changedBy = (body.changedBy as string) ?? undefined;
   const isUpdate  = Boolean(body.id);
 
@@ -67,7 +67,7 @@ export async function DELETE(req: NextRequest) {
   if (!IS_CONFIGURED) return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 });
 
   const id       = req.nextUrl.searchParams.get('id') ?? '';
-  const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'default-tenant';
+  const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'f0000000-0000-4000-a000-000000000001';
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
   // Fetch name for audit before delete

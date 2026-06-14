@@ -218,7 +218,7 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const { customerId, strategyId, tenantId = 'default-tenant', attributes = {} } = body;
+  const { customerId, strategyId, tenantId = 'f0000000-0000-4000-a000-000000000001', attributes = {} } = body;
 
   if (!customerId?.trim() || !strategyId?.trim()) {
     return NextResponse.json({ error: 'customerId and strategyId are required' }, { status: 400 });
@@ -348,7 +348,7 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const start      = Date.now();
   const customerId = req.nextUrl.searchParams.get('customerId') ?? '';
-  const tenantId   = req.nextUrl.searchParams.get('tenantId')   ?? 'default-tenant';
+  const tenantId   = req.nextUrl.searchParams.get('tenantId')   ?? 'f0000000-0000-4000-a000-000000000001';
   const attrsParam = req.nextUrl.searchParams.get('attributes') ?? '{}';
 
   if (!customerId.trim()) {

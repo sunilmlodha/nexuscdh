@@ -39,7 +39,7 @@ export default function SettingsPage() {
   const loadKeys = async () => {
     setKeysLoading(true);
     try {
-      const res = await fetch('/api/apikeys?tenantId=default-tenant');
+      const res = await fetch('/api/apikeys?tenantId=f0000000-0000-4000-a000-000000000001');
       if (res.ok) {
         const data = await res.json();
         setApiKeys(data.keys ?? data ?? []);
@@ -72,7 +72,7 @@ export default function SettingsPage() {
       const res = await fetch('/api/apikeys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newKeyName.trim(), tenantId: 'default-tenant' }),
+        body: JSON.stringify({ name: newKeyName.trim(), tenantId: 'f0000000-0000-4000-a000-000000000001' }),
       });
       if (res.ok) {
         const data = await res.json();

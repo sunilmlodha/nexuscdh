@@ -37,7 +37,7 @@ function evaluateForBatch(
 }
 
 export async function GET(req: NextRequest) {
-  const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'default-tenant';
+  const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'f0000000-0000-4000-a000-000000000001';
   if (!IS_CONFIGURED) return NextResponse.json({ data: [], configured: false });
   const jobs = await fetchBatchJobs(tenantId);
   return NextResponse.json({ data: jobs, configured: true });
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
   };
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const { name, strategyIds, channelId, audienceId, tenantId = 'default-tenant', runNow = false } = body;
+  const { name, strategyIds, channelId, audienceId, tenantId = 'f0000000-0000-4000-a000-000000000001', runNow = false } = body;
   if (!name || !strategyIds?.length)
     return NextResponse.json({ error: 'name and strategyIds required' }, { status: 400 });
 

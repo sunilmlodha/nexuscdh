@@ -30,7 +30,7 @@ export default function ApiKeysPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const r = await fetch('/api/apikeys?tenantId=default-tenant');
+    const r = await fetch('/api/apikeys?tenantId=f0000000-0000-4000-a000-000000000001');
     const j = await r.json();
     setConfigured(j.configured !== false);
     setKeys(j.data ?? []);
@@ -45,7 +45,7 @@ export default function ApiKeysPage() {
     const r = await fetch('/api/apikeys', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newName.trim(), tenantId: 'default-tenant' }),
+      body: JSON.stringify({ name: newName.trim(), tenantId: 'f0000000-0000-4000-a000-000000000001' }),
     });
     const j = await r.json();
     setCreating(false);

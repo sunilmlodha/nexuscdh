@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchExperiments, upsertExperiment, IS_CONFIGURED, supabase } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
-  const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'default-tenant';
+  const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'f0000000-0000-4000-a000-000000000001';
   if (!IS_CONFIGURED) return NextResponse.json({ data: [], configured: false });
 
   const experiments = await fetchExperiments(tenantId);
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const tenantId = (body.tenantId as string) ?? 'default-tenant';
+  const tenantId = (body.tenantId as string) ?? 'f0000000-0000-4000-a000-000000000001';
   const data = await upsertExperiment(body as { name: string }, tenantId);
   if (!data) return NextResponse.json({ error: 'Failed to save experiment' }, { status: 500 });
   return NextResponse.json({ data });

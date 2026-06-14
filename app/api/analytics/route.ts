@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { IS_CONFIGURED, supabase } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
-  const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'default-tenant';
+  const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'f0000000-0000-4000-a000-000000000001';
   const days     = parseInt(req.nextUrl.searchParams.get('days') ?? '30');
 
   if (!IS_CONFIGURED) return NextResponse.json({ configured: false, data: null });

@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const { audienceId, platform, tenantId = 'default-tenant' } = body;
+  const { audienceId, platform, tenantId = 'f0000000-0000-4000-a000-000000000001' } = body;
   if (!audienceId || !platform) {
     return NextResponse.json({ error: 'audienceId and platform required' }, { status: 400 });
   }

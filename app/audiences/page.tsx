@@ -24,7 +24,7 @@ function SyncModal({ audienceId, audienceName, onClose }: { audienceId: string; 
     const r = await fetch('/api/audiences/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ audienceId, platform, tenantId: 'default-tenant' }),
+      body: JSON.stringify({ audienceId, platform, tenantId: 'f0000000-0000-4000-a000-000000000001' }),
     });
     const j = await r.json();
     setSyncing(false);

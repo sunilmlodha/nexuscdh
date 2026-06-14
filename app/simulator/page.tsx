@@ -81,7 +81,7 @@ export default function SimulatorPage() {
         const attrsObj = buildAttributes();
         const attrsParam = encodeURIComponent(JSON.stringify(attrsObj));
         const res = await fetch(
-          `/api/decide?customerId=${encodeURIComponent(customerId.trim())}&tenantId=default-tenant&attributes=${attrsParam}`
+          `/api/decide?customerId=${encodeURIComponent(customerId.trim())}&tenantId=f0000000-0000-4000-a000-000000000001&attributes=${attrsParam}`
         );
         data = await res.json();
       } else {
@@ -136,7 +136,7 @@ export default function SimulatorPage() {
     setProfileLoading(true);
     setProfileBadge(null);
     try {
-      const res = await fetch(`/api/profile?customerId=${encodeURIComponent(customerId.trim())}&tenantId=default-tenant`);
+      const res = await fetch(`/api/profile?customerId=${encodeURIComponent(customerId.trim())}&tenantId=f0000000-0000-4000-a000-000000000001`);
       if (res.ok) {
         const data = await res.json();
         const profile = data.profile ?? data;

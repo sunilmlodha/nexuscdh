@@ -70,7 +70,7 @@ export default function ProfilesPage() {
     setError(null);
     setBrowseMode(false);
     try {
-      const res = await fetch(`/api/profile?customerId=${encodeURIComponent(customerId)}&tenantId=default-tenant`);
+      const res = await fetch(`/api/profile?customerId=${encodeURIComponent(customerId)}&tenantId=f0000000-0000-4000-a000-000000000001`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load profile');
       setProfile(data.profile);
@@ -92,7 +92,7 @@ export default function ProfilesPage() {
     setDecisions([]);
     setBrowseMode(true);
     try {
-      const res = await fetch('/api/profile?list=true&tenantId=default-tenant');
+      const res = await fetch('/api/profile?list=true&tenantId=f0000000-0000-4000-a000-000000000001');
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load profiles');
       setAllProfiles(data.profiles || []);
@@ -133,7 +133,7 @@ export default function ProfilesPage() {
     if (!confirmed) return;
     try {
       const res = await fetch(
-        `/api/profile?customerId=${encodeURIComponent(profile.customer_id)}&tenantId=default-tenant`,
+        `/api/profile?customerId=${encodeURIComponent(profile.customer_id)}&tenantId=f0000000-0000-4000-a000-000000000001`,
         { method: 'DELETE' }
       );
       if (!res.ok) {

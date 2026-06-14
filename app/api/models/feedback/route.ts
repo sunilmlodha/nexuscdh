@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const { decisionId, actionId, outcome, tenantId = 'default-tenant' } = body;
+  const { decisionId, actionId, outcome, tenantId = 'f0000000-0000-4000-a000-000000000001' } = body;
   if (!decisionId || !actionId || !outcome) {
     return NextResponse.json({ error: 'decisionId, actionId, outcome required' }, { status: 400 });
   }
@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
 // GET /api/models/feedback?actionId=xxx — propensity history (from decision_log)
 export async function GET(req: NextRequest) {
   const actionId = req.nextUrl.searchParams.get('actionId') ?? '';
-  const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'default-tenant';
+  const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'f0000000-0000-4000-a000-000000000001';
   if (!IS_CONFIGURED) return NextResponse.json({ data: [], configured: false });
   if (!actionId)      return NextResponse.json({ error: 'actionId required' }, { status: 400 });
 

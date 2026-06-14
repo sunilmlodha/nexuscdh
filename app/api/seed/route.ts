@@ -134,15 +134,45 @@ const AUDIENCES = [
 ];
 
 const EVENT_TRIGGERS = [
-  { id: IDS.TRG_001, tenant_id: TENANT, name: 'Mortgage Application Approved', event_type: 'mortgage.approved', description: 'Fires when a mortgage application is approved — triggers home insurance upsell.', strategy_ids: [IDS.STR_001], conditions: [{ attribute:'status',op:'=',value:'approved' }], channel_ids: ['email','web'], status: 'active' },
-  { id: IDS.TRG_002, tenant_id: TENANT, name: 'High-Value Purchase Detected',  event_type: 'transaction.large', description: 'Fires when a single transaction exceeds $500 — triggers premium card upsell.',  strategy_ids: [IDS.STR_002], conditions: [{ attribute:'amount',op:'>=',value:'500' }],  channel_ids: ['app','web'],   status: 'active' },
-  { id: IDS.TRG_003, tenant_id: TENANT, name: 'Login After 60 Days Inactivity',event_type: 'session.login',    description: 'Fires on login after 60+ day gap — triggers re-engagement offer.',              strategy_ids: [IDS.STR_003], conditions: [{ attribute:'days_since_last_login',op:'>=',value:'60' }], channel_ids: ['web','app'],   status: 'active' },
-  { id: IDS.TRG_004, tenant_id: TENANT, name: 'New Account Created',           event_type: 'account.created',  description: 'Fires on new account creation — starts onboarding journey.',                    strategy_ids: [IDS.STR_004], conditions: [],                                                         channel_ids: ['email','sms'], status: 'active' },
+  { id: IDS.TRG_001, tenant_id: TENANT, name: 'Mortgage Application Approved', event_type: 'mortgage.approved', description: 'Fires when a mortgage application is approved — triggers home insurance upsell.', strategy_ids: [IDS.STR_001], event_conditions: { attribute:'status',op:'=',value:'approved' }, channel_ids: ['email','web'], enabled: true, status: 'active' },
+  { id: IDS.TRG_002, tenant_id: TENANT, name: 'High-Value Purchase Detected',  event_type: 'transaction.large', description: 'Fires when a single transaction exceeds $500 — triggers premium card upsell.',  strategy_ids: [IDS.STR_002], event_conditions: { attribute:'amount',op:'>=',value:'500' },  channel_ids: ['app','web'],   enabled: true, status: 'active' },
+  { id: IDS.TRG_003, tenant_id: TENANT, name: 'Login After 60 Days Inactivity',event_type: 'session.login',    description: 'Fires on login after 60+ day gap — triggers re-engagement offer.',              strategy_ids: [IDS.STR_003], event_conditions: { attribute:'days_since_last_login',op:'>=',value:'60' }, channel_ids: ['web','app'],   enabled: true, status: 'active' },
+  { id: IDS.TRG_004, tenant_id: TENANT, name: 'New Account Created',           event_type: 'account.created',  description: 'Fires on new account creation — starts onboarding journey.',                    strategy_ids: [IDS.STR_004], event_conditions: {},                                                         channel_ids: ['email','sms'], enabled: true, status: 'active' },
 ];
 
 const EXPERIMENTS = [
-  { id: IDS.EXP_001, tenant_id: TENANT, name: 'Insurance Upsell: Email vs Web',   description: 'Champion/Challenger — comparing email vs web channel for home insurance upsell.', strategy_id: IDS.STR_001, champion_variant: { name:'Email-first',  action_id: IDS.ACT_001, channel:'email', traffic_pct:70 }, challenger_variants: [{ name:'Web banner',     action_id: IDS.ACT_001, channel:'web', traffic_pct:30 }], metric:'conversion_rate',    status:'running', start_date:'2026-05-01', end_date:'2026-07-31', auto_promote:true,  promote_threshold:0.05, results:{ champion_cr:0.068, challenger_cr:0.054, p_value:0.031 } },
-  { id: IDS.EXP_002, tenant_id: TENANT, name: 'Platinum Card: Headline Copy Test', description: 'A/B test on headline copy for Platinum card upgrade offer.',                        strategy_id: IDS.STR_002, champion_variant: { name:'Points focus', action_id: IDS.ACT_003, channel:'web',   traffic_pct:50 }, challenger_variants: [{ name:'Prestige focus', action_id: IDS.ACT_003, channel:'web', traffic_pct:50 }], metric:'click_through_rate', status:'paused',  start_date:'2026-04-15', end_date:'2026-06-15', auto_promote:false, promote_threshold:0.10, results:{ champion_cr:0.042, challenger_cr:0.039, p_value:0.21  } },
+  {
+    id: IDS.EXP_001, tenant_id: TENANT,
+    name: 'Insurance Upsell: Email vs Web',
+    description: 'Champion/Challenger — comparing email vs web channel for home insurance upsell.',
+    strategy_id: IDS.STR_001,
+    status: 'running',
+    variants: [
+      { name: 'Email-first',  action_id: IDS.ACT_001, channel: 'email', traffic_pct: 70, is_champion: true },
+      { name: 'Web banner',   action_id: IDS.ACT_001, channel: 'web',   traffic_pct: 30, is_champion: false },
+    ],
+    traffic_split: { champion: 70, challenger: 30 },
+    metric: 'conversion_rate',
+    start_date: '2026-05-01', end_date: '2026-07-31',
+    auto_promote: true, promote_threshold: 0.05,
+    results: { champion_cr: 0.068, challenger_cr: 0.054, p_value: 0.031 },
+  },
+  {
+    id: IDS.EXP_002, tenant_id: TENANT,
+    name: 'Platinum Card: Headline Copy Test',
+    description: 'A/B test on headline copy for Platinum card upgrade offer.',
+    strategy_id: IDS.STR_002,
+    status: 'paused',
+    variants: [
+      { name: 'Points focus',   action_id: IDS.ACT_003, channel: 'web', traffic_pct: 50, is_champion: true },
+      { name: 'Prestige focus', action_id: IDS.ACT_003, channel: 'web', traffic_pct: 50, is_champion: false },
+    ],
+    traffic_split: { champion: 50, challenger: 50 },
+    metric: 'click_through_rate',
+    start_date: '2026-04-15', end_date: '2026-06-15',
+    auto_promote: false, promote_threshold: 0.10,
+    results: { champion_cr: 0.042, challenger_cr: 0.039, p_value: 0.21 },
+  },
 ];
 
 const CUSTOMER_PROFILES = [
@@ -350,10 +380,20 @@ export async function POST(req: NextRequest) {
     }
     results.customer_profiles = profCount;
 
-    // decision logs
+    // decision logs — append-only (no update/delete), use insert with ignoreDuplicates
+    const LOG_IDS = [
+      'c0000001-1000-4000-a000-000000000001',
+      'c0000002-1000-4000-a000-000000000002',
+      'c0000003-1000-4000-a000-000000000003',
+      'c0000004-1000-4000-a000-000000000004',
+      'c0000005-1000-4000-a000-000000000005',
+      'c0000006-1000-4000-a000-000000000006',
+      'c0000007-1000-4000-a000-000000000007',
+      'c0000008-1000-4000-a000-000000000008',
+    ];
     const { error: logErr } = await client.from('decision_log').upsert(
-      DECISION_LOGS.map((l, i) => ({ ...l, id: `log-seed-${i + 1}`, created_at: new Date(Date.now() - i * 3600000).toISOString() })),
-      { onConflict: 'id' }
+      DECISION_LOGS.map((l, i) => ({ ...l, id: LOG_IDS[i], created_at: new Date(Date.now() - i * 3600000).toISOString() })),
+      { onConflict: 'id', ignoreDuplicates: true }
     );
     results.decision_logs = logErr ? `error: ${logErr.message}` : DECISION_LOGS.length;
 

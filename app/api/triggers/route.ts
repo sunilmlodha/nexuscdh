@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchEventTriggers, upsertEventTrigger, IS_CONFIGURED, supabase } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
-  const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'default-tenant';
+  const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'f0000000-0000-4000-a000-000000000001';
   if (!IS_CONFIGURED) return NextResponse.json({ data: [], configured: false });
   const data = await fetchEventTriggers(tenantId);
   return NextResponse.json({ data, configured: true });
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const tenantId = (body.tenantId as string) ?? 'default-tenant';
+  const tenantId = (body.tenantId as string) ?? 'f0000000-0000-4000-a000-000000000001';
   if (!body.name || !body.event_type) {
     return NextResponse.json({ error: 'name and event_type required' }, { status: 400 });
   }

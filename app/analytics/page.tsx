@@ -181,7 +181,7 @@ export default function AnalyticsPage() {
     setLoading(true);
     setError(null);
 
-    fetch(`/api/analytics?tenantId=default-tenant&days=${period}`)
+    fetch(`/api/analytics?tenantId=f0000000-0000-4000-a000-000000000001&days=${period}`)
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();

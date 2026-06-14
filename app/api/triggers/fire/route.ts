@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const { eventType, customerId, tenantId = 'default-tenant', payload = {} } = body;
+  const { eventType, customerId, tenantId = 'f0000000-0000-4000-a000-000000000001', payload = {} } = body;
   if (!eventType || !customerId) {
     return NextResponse.json({ error: 'eventType and customerId are required' }, { status: 400 });
   }

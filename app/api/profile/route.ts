@@ -7,7 +7,7 @@ import {
 
 export async function GET(req: NextRequest) {
   const customerId = req.nextUrl.searchParams.get('customerId');
-  const tenantId   = req.nextUrl.searchParams.get('tenantId') ?? 'default-tenant';
+  const tenantId   = req.nextUrl.searchParams.get('tenantId') ?? 'f0000000-0000-4000-a000-000000000001';
   const listAll    = req.nextUrl.searchParams.get('list') === 'true';
 
   if (!IS_CONFIGURED) return NextResponse.json({ profile: null, recentDecisions: [], configured: false });
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   let body: { customerId: string; attributes: Record<string, unknown>; tenantId?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const { customerId, attributes, tenantId = 'default-tenant' } = body;
+  const { customerId, attributes, tenantId = 'f0000000-0000-4000-a000-000000000001' } = body;
   if (!customerId) return NextResponse.json({ error: 'customerId required' }, { status: 400 });
 
   await upsertCustomerProfile(tenantId, customerId, attributes ?? {});
@@ -55,7 +55,7 @@ export async function DELETE(req: NextRequest) {
   if (!IS_CONFIGURED) return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 });
 
   const customerId = req.nextUrl.searchParams.get('customerId') ?? '';
-  const tenantId   = req.nextUrl.searchParams.get('tenantId') ?? 'default-tenant';
+  const tenantId   = req.nextUrl.searchParams.get('tenantId') ?? 'f0000000-0000-4000-a000-000000000001';
   if (!customerId) return NextResponse.json({ error: 'customerId required' }, { status: 400 });
 
   const deletedDecisions = await deleteCustomerProfile(tenantId, customerId);
