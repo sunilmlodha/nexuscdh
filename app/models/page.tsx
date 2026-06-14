@@ -1,12 +1,36 @@
 'use client';
+import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { usePermission } from '@/lib/auth';
-import { Brain, Plus } from 'lucide-react';
+import { Brain, Send, CheckCircle } from 'lucide-react';
 
 export default function ModelsPage() {
   const { models, actions } = useStore();
   const canWrite = usePermission('models:write');
   const STATUS_BADGE: Record<string,string> = { live:'badge-green', training:'badge-amber', shadow:'badge-blue', retired:'badge-gray' };
+
+  const [fbDecisionId, setFbDecisionId] = useState('');
+  const [fbOutcome, setFbOutcome] = useState<'accepted'|'rejected'|'ignored'>('accepted');
+  const [fbStatus, setFbStatus] = useState<'idle'|'sending'|'done'|'error'>('idle');
+  const [fbMsg, setFbMsg] = useState('');
+
+  const sendFeedback = async () => {
+    if (!fbDecisionId.trim()) return;
+    setFbStatus('sending');
+    try {
+      const r = await fetch('/api/models/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decisionId: fbDecisionId.trim(), outcome: fbOutcome, tenantId: 'default-tenant' }),
+      });
+      const j = await r.json();
+      if (!r.ok) { setFbMsg(j.error ?? 'Failed'); setFbStatus('error'); return; }
+      setFbMsg(`Propensity updated: ${j.before?.toFixed(3) ?? '?'} → ${j.after?.toFixed(3) ?? '?'}`);
+      setFbStatus('done');
+      setFbDecisionId('');
+    } catch { setFbMsg('Network error'); setFbStatus('error'); }
+    setTimeout(() => setFbStatus('idle'), 4000);
+  };
 
   return (
     <div className="animate-in">
@@ -46,6 +70,47 @@ export default function ModelsPage() {
             </table>
           </div>
         )}
+      </div>
+
+      {/* Propensity Feedback */}
+      <div style={{ padding: '0 24px 24px' }}>
+        <div className="card" style={{ padding: 20 }}>
+          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Brain size={15} /> Adaptive Feedback — Manual Override
+          </div>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
+            Submit a decision outcome to update the action&apos;s propensity score using the Bayesian learning rate (±5%).
+          </p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div style={{ flex: 2, minWidth: 200 }}>
+              <label className="form-label">Decision ID</label>
+              <input className="form-input" value={fbDecisionId} onChange={e => setFbDecisionId(e.target.value)} placeholder="UUID from /api/decide response" />
+            </div>
+            <div style={{ flex: 1, minWidth: 140 }}>
+              <label className="form-label">Outcome</label>
+              <select className="form-input" value={fbOutcome} onChange={e => setFbOutcome(e.target.value as typeof fbOutcome)}>
+                <option value="accepted">Accepted</option>
+                <option value="rejected">Rejected</option>
+                <option value="ignored">Ignored</option>
+              </select>
+            </div>
+            <button
+              className="btn btn-primary"
+              onClick={sendFeedback}
+              disabled={fbStatus === 'sending' || !fbDecisionId.trim()}
+            >
+              <Send size={13} /> {fbStatus === 'sending' ? 'Sending…' : 'Submit'}
+            </button>
+          </div>
+          {fbStatus === 'done' && (
+            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, color: '#16a34a', fontSize: 13 }}>
+              <CheckCircle size={14} /> {fbMsg}
+            </div>
+          )}
+          {fbStatus === 'error' && (
+            <div style={{ marginTop: 10, color: '#dc2626', fontSize: 13 }}>{fbMsg}</div>
+          )}
+        </div>
       </div>
     </div>
   );

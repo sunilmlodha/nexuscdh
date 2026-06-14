@@ -44,7 +44,10 @@ export type Permission =
   | 'users:read'       | 'users:write'
   | 'settings:read'    | 'settings:write'
   | 'profiles:read'    | 'profiles:write'
-  | 'experiments:read' | 'experiments:write';
+  | 'experiments:read' | 'experiments:write'
+  | 'analytics:read'
+  | 'simulate:read'   | 'simulate:write'
+  | 'triggers:read'   | 'triggers:write';
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   super_admin: [
