@@ -10,9 +10,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const URL  = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? '';
-const KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
-const TENANT = 'default-tenant';
+const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? '';
+const SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+
+// Deterministic tenant UUID — upserted before all other seed data
+const TENANT_ID = 'f0000000-0000-4000-a000-000000000001';
+const TENANT    = TENANT_ID; // alias used throughout seed data arrays
 
 // Deterministic UUIDs for seed data (v4 format, hardcoded for repeatability)
 const IDS = {
@@ -63,8 +66,17 @@ const IDS = {
 };
 
 function db() {
-  if (!URL || !KEY) throw new Error('Supabase not configured');
-  return createClient(URL, KEY);
+  if (!SUPA_URL || !SUPA_KEY) throw new Error('Supabase not configured');
+  return createClient(SUPA_URL, SUPA_KEY);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function ensureTenant(client: any) {
+  const { error } = await client.from('tenants').upsert(
+    { id: TENANT_ID, name: 'Demo Organisation', industry: 'retail_banking' },
+    { onConflict: 'id' }
+  );
+  if (error) throw new Error(`Tenant upsert failed: ${error.message}`);
 }
 
 // ─── seed data ────────────────────────────────────────────────────────────────
@@ -279,6 +291,9 @@ export async function POST(req: NextRequest) {
   try {
     const client = db();
     const results: Record<string, unknown> = {};
+
+    // Ensure tenant row exists before inserting FK-dependent records
+    await ensureTenant(client);
 
     if (wipe) {
       // decision_log has a no-delete Postgres rule — skip it on wipe
