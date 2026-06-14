@@ -2,7 +2,83 @@
 import { useState } from 'react';
 import { useStore, Strategy, INDUSTRY_TEMPLATES } from '@/lib/store';
 import { usePermission } from '@/lib/auth';
-import { Plus, Edit2, Trash2, Play, Pause, X, Save, CheckCircle2, GitBranch, Clock } from 'lucide-react';
+import { Plus, Edit2, Trash2, Play, Pause, X, Save, CheckCircle2, GitBranch, Clock, History, RotateCcw } from 'lucide-react';
+
+interface VersionRecord {
+  id: string;
+  version: number;
+  changed_by: string | null;
+  change_summary: string | null;
+  created_at: string;
+  snapshot: Record<string, unknown>;
+}
+
+function VersionHistoryPanel({ strategyId, strategyName, onClose }: { strategyId: string; strategyName: string; onClose: () => void }) {
+  const [versions, setVersions] = useState<VersionRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [rolling, setRolling] = useState<number | null>(null);
+  const [done, setDone] = useState<number | null>(null);
+
+  useState(() => {
+    fetch(`/api/strategies/versions?strategyId=${strategyId}&tenantId=default-tenant`)
+      .then(r => r.json())
+      .then(j => { setVersions(j.data ?? []); setLoading(false); })
+      .catch(() => setLoading(false));
+  });
+
+  const rollback = async (v: VersionRecord) => {
+    if (!confirm(`Rollback "${strategyName}" to v${v.version}? This will overwrite the current configuration.`)) return;
+    setRolling(v.version);
+    await fetch('/api/strategies/versions', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ strategyId, version: v.version, tenantId: 'default-tenant' }),
+    });
+    setRolling(null);
+    setDone(v.version);
+    setTimeout(() => setDone(null), 3000);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 560, maxHeight: '80vh' }}>
+        <div className="modal-header">
+          <span className="modal-title"><History size={14} style={{ marginRight: 6 }} />Version History — {strategyName}</span>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={16} /></button>
+        </div>
+        <div className="modal-body">
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>Loading…</div>
+          ) : versions.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)', fontSize: 13 }}>No versions saved yet. Versions are created automatically on each save.</div>
+          ) : versions.map(v => (
+            <div key={v.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg)', border: '2px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>v{v.version}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: 13 }}>{v.change_summary ?? 'Snapshot'}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                  {new Date(v.created_at).toLocaleString()} · {v.changed_by ?? 'system'}
+                </div>
+                {done === v.version && <div style={{ fontSize: 12, color: '#16a34a', marginTop: 4 }}>✓ Rolled back successfully</div>}
+              </div>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => rollback(v)}
+                disabled={rolling === v.version}
+                style={{ flexShrink: 0 }}
+              >
+                <RotateCcw size={11} /> {rolling === v.version ? 'Rolling back…' : 'Restore'}
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-secondary" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const ARBITRATION_LABELS = { propensity:'Highest propensity', value:'Highest value', weighted:'Weighted score', random_ab:'A/B test' };
 const PRIORITY_BADGE: Record<string,string> = { low:'badge-gray', standard:'badge-blue', high:'badge-amber', critical:'badge-red' };
@@ -189,6 +265,7 @@ export default function StrategiesPage() {
   const canWrite = usePermission('strategies:write');
   const [modal, setModal] = useState<{data?:Strategy}|null>(null);
   const [filter, setFilter] = useState<string>('all');
+  const [historyFor, setHistoryFor] = useState<{ id: string; name: string } | null>(null);
 
   const visible = filter==='all' ? strategies : strategies.filter(s=>s.status===filter);
 
@@ -233,6 +310,7 @@ export default function StrategiesPage() {
                       <td><span className={`badge ${STATUS_COLOR[s.status]}`}>{s.status}</span></td>
                       <td>
                         <div style={{ display:'flex', gap:4 }} className="group-hover">
+                          <button onClick={() => setHistoryFor({ id: s.id, name: s.name })} className="btn btn-ghost btn-sm" style={{ padding: '4px 8px' }} title="Version history"><History size={12}/></button>
                           {canWrite && <>
                             <button onClick={()=>setModal({data:s})} className="btn btn-ghost btn-sm" style={{ padding:'4px 8px' }}><Edit2 size={12}/></button>
                             <button onClick={()=>updateStrategy(s.id,{status:s.status==='active'?'paused':'active'})} className="btn btn-ghost btn-sm" style={{ padding:'4px 8px' }}
@@ -250,6 +328,7 @@ export default function StrategiesPage() {
         </div>
       </div>
       {modal&&<StrategyModal strategy={modal.data} onClose={()=>setModal(null)} />}
+      {historyFor && <VersionHistoryPanel strategyId={historyFor.id} strategyName={historyFor.name} onClose={() => setHistoryFor(null)} />}
     </div>
   );
 }

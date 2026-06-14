@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Layers, GitBranch, Radio, Shield,
   Users, Brain, Cpu, Activity, Settings, LogOut,
   ChevronRight, Database, UserCheck, Zap, Sparkles,
-  UserSearch, FlaskConical, BarChart3,
+  UserSearch, FlaskConical, BarChart3, Key, ScrollText,
 } from 'lucide-react';
 
 const NAV_SECTIONS = [
@@ -40,6 +40,8 @@ const NAV_SECTIONS = [
     items: [
       { href: '/operations',label: 'Operations',     icon: Activity,        permission: 'operations:read' },
       { href: '/triggers',  label: 'Event Triggers',  icon: Zap,            permission: 'triggers:read' },
+      { href: '/apikeys',   label: 'API Keys',        icon: Key,            permission: 'settings:read' },
+      { href: '/audit',     label: 'Audit Log',       icon: ScrollText,     permission: 'settings:read' },
       { href: '/configuration', label: 'Industry Templates', icon: Sparkles,   permission: 'settings:read' },
       { href: '/users',     label: 'Users & Roles',  icon: UserCheck,       permission: 'users:read' },
       { href: '/settings',  label: 'Settings',       icon: Settings,        permission: 'settings:read' },
