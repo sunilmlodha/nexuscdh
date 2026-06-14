@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useAuth, usePermission, ROLE_LABELS } from '@/lib/auth';
+import HydrateStore from '@/components/HydrateStore';
 import {
   LayoutDashboard, Layers, GitBranch, Radio, Shield,
   Users, Brain, Cpu, Activity, Settings, LogOut,
@@ -152,6 +153,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         {/* Main */}
         <main className="main-content">
+          <HydrateStore />
           {children}
         </main>
 

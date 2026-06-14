@@ -362,6 +362,16 @@ interface CDHStore {
   decisions: DecisionRecord[];
   recordDecision: (d: Omit<DecisionRecord, 'id'>) => void;
   clearDecisions: () => void;
+
+  // Hydration from Supabase
+  hydrateFromDB: (data: {
+    categories?: ActionCategory[];
+    topics?: ActionTopic[];
+    actions?: Action[];
+    policies?: ContactPolicy[];
+    strategies?: Strategy[];
+    audiences?: Audience[];
+  }) => void;
 }
 
 const now = new Date().toISOString();
@@ -456,6 +466,15 @@ export const useStore = create<CDHStore>()(
         decisions: [{ ...d, id: `DEC-${Date.now()}` }, ...s.decisions].slice(0, 1000),
       })),
       clearDecisions: () => set({ decisions: [] }),
+
+      hydrateFromDB: (data) => set(s => ({
+        categories: data.categories?.length ? data.categories : s.categories,
+        topics:     data.topics?.length     ? data.topics     : s.topics,
+        actions:    data.actions?.length    ? data.actions    : s.actions,
+        policies:   data.policies?.length   ? data.policies   : s.policies,
+        strategies: data.strategies?.length ? data.strategies : s.strategies,
+        audiences:  data.audiences?.length  ? data.audiences  : s.audiences,
+      })),
     }),
     { name: 'nexuscdh-enterprise-store' }
   )
