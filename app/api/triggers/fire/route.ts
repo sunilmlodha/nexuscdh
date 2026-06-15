@@ -13,7 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { IS_CONFIGURED, supabase, fetchStrategies, upsertCustomerProfile, insertDecisionLog } from '@/lib/supabase';
+import { IS_CONFIGURED, serviceSupabase, fetchStrategies, upsertCustomerProfile, insertDecisionLog } from '@/lib/supabase';
 
 interface FireBody {
   eventType: string;
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 1. Find matching enabled triggers for this event type
-  const { data: triggers } = await supabase!
+  const { data: triggers } = await serviceSupabase!
     .from('event_triggers')
     .select('*')
     .eq('tenant_id', tenantId)
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
 
   for (const strategy of strategies) {
     // Fetch actions for this strategy
-    const { data: actionRows } = await supabase!
+    const { data: actionRows } = await serviceSupabase!
       .from('actions')
       .select('id, name, base_propensity')
       .in('id', strategy.action_ids ?? [])

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchExperiments, upsertExperiment, IS_CONFIGURED, supabase } from '@/lib/supabase';
+import { fetchExperiments, upsertExperiment, IS_CONFIGURED, supabase, serviceSupabase } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
   const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'f0000000-0000-4000-a000-000000000001';
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     const stats: Record<string, { total: number; served: number; accepted: number; rejected: number; ignored: number; acceptanceRate: number }> = {};
 
     for (const sid of variantIds) {
-      const { data } = await supabase!
+      const { data } = await serviceSupabase!
         .from('decision_log')
         .select('served,outcome')
         .eq('tenant_id', tenantId)
@@ -62,7 +62,7 @@ export async function DELETE(req: NextRequest) {
   const id = req.nextUrl.searchParams.get('id') ?? '';
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
-  const { error } = await supabase!.from('experiments').delete().eq('id', id);
+  const { error } = await serviceSupabase!.from('experiments').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

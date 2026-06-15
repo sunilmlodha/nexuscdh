@@ -11,7 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { IS_CONFIGURED, supabase } from '@/lib/supabase';
+import { IS_CONFIGURED, supabase, serviceSupabase } from '@/lib/supabase';
 
 type Platform = 'meta' | 'google' | 'linkedin' | 'tiktok' | 'programmatic';
 
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   // Fetch audience profile count (real data when Supabase is configured)
   let profileCount = 0;
   if (IS_CONFIGURED) {
-    const { count } = await supabase!
+    const { count } = await serviceSupabase!
       .from('customer_profiles')
       .select('*', { count: 'exact', head: true })
       .eq('tenant_id', tenantId);

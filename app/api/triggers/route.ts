@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchEventTriggers, upsertEventTrigger, IS_CONFIGURED, supabase } from '@/lib/supabase';
+import { fetchEventTriggers, upsertEventTrigger, IS_CONFIGURED, supabase, serviceSupabase } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
   const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'f0000000-0000-4000-a000-000000000001';
@@ -30,7 +30,7 @@ export async function DELETE(req: NextRequest) {
   if (!IS_CONFIGURED) return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 });
   const id = req.nextUrl.searchParams.get('id') ?? '';
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
-  const { error } = await supabase!.from('event_triggers').delete().eq('id', id);
+  const { error } = await serviceSupabase!.from('event_triggers').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

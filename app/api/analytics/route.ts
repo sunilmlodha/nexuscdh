@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { IS_CONFIGURED, supabase } from '@/lib/supabase';
+import { IS_CONFIGURED, supabase, serviceSupabase } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
   const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'f0000000-0000-4000-a000-000000000001';
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   since.setDate(since.getDate() - days);
   const sinceISO = since.toISOString();
 
-  const { data: logs } = await supabase!
+  const { data: logs } = await serviceSupabase!
     .from('decision_log')
     .select('served, outcome, suppression_reason, channel_id, strategy_id, strategy_name, action_id, action_name, propensity, customer_id, decision_latency_ms, created_at')
     .eq('tenant_id', tenantId)

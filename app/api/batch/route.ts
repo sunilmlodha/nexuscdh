@@ -6,7 +6,7 @@ import {
   getContactCounts, incrementContactCount,
   IS_CONFIGURED, supabase,
   DBStrategy, DBAction, DBContactPolicy,
-} from '@/lib/supabase';
+  serviceSupabase } from '@/lib/supabase';
 
 // Inline decision logic — self-contained, mirrors /api/decide engine
 function evaluateForBatch(
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
     // Fire-and-forget async execution
     (async () => {
       try {
-        await supabase!.from('batch_jobs').update({ status: 'running' }).eq('id', job.id);
+        await serviceSupabase!.from('batch_jobs').update({ status: 'running' }).eq('id', job.id);
 
         const [strategies, actions, policies, profiles] = await Promise.all([
           fetchStrategies(tenantId),
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        await supabase!.from('batch_jobs').update({
+        await serviceSupabase!.from('batch_jobs').update({
           status: 'completed',
           completed_at: new Date().toISOString(),
           total_customers: profiles.length,
@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
         }).eq('id', job.id);
 
       } catch (e) {
-        await supabase!.from('batch_jobs').update({
+        await serviceSupabase!.from('batch_jobs').update({
           status: 'failed',
           error_message: String(e),
         }).eq('id', job.id);
@@ -147,7 +147,7 @@ export async function DELETE(req: NextRequest) {
   const id = req.nextUrl.searchParams.get('id') ?? '';
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
-  const { error } = await supabase!.from('batch_jobs').delete().eq('id', id);
+  const { error } = await serviceSupabase!.from('batch_jobs').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchStrategies, upsertStrategy, insertConfigAudit, IS_CONFIGURED, supabase } from '@/lib/supabase';
+import { fetchStrategies, upsertStrategy, insertConfigAudit, IS_CONFIGURED, supabase, serviceSupabase } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
   const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'f0000000-0000-4000-a000-000000000001';
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   // Snapshot old state before overwrite (for versioning + audit)
   let beforeSnapshot: Record<string, unknown> | undefined;
   if (isUpdate && body.id) {
-    const { data: existing } = await supabase!
+    const { data: existing } = await serviceSupabase!
       .from('strategies').select('*').eq('id', body.id).single();
     beforeSnapshot = existing ?? undefined;
   }
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   if (!data) return NextResponse.json({ error: 'Failed to save strategy' }, { status: 500 });
 
   // Auto-version snapshot
-  const { data: existingVersions } = await supabase!
+  const { data: existingVersions } = await serviceSupabase!
     .from('strategy_versions')
     .select('version')
     .eq('strategy_id', data.id)
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     .limit(1);
   const nextVersion = (existingVersions?.[0]?.version ?? 0) + 1;
 
-  await supabase!.from('strategy_versions').insert({
+  await serviceSupabase!.from('strategy_versions').insert({
     tenant_id:      tenantId,
     strategy_id:    data.id,
     version:        nextVersion,
@@ -71,9 +71,9 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
   // Fetch name for audit before delete
-  const { data: existing } = await supabase!.from('strategies').select('name').eq('id', id).single();
+  const { data: existing } = await serviceSupabase!.from('strategies').select('name').eq('id', id).single();
 
-  const { error } = await supabase!.from('strategies').delete().eq('id', id);
+  const { error } = await serviceSupabase!.from('strategies').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await insertConfigAudit({

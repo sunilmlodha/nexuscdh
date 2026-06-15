@@ -3,7 +3,7 @@ import {
   fetchCustomerProfile, fetchCustomerProfiles,
   upsertCustomerProfile, deleteCustomerProfile,
   IS_CONFIGURED, supabase,
-} from '@/lib/supabase';
+  serviceSupabase } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
   const customerId = req.nextUrl.searchParams.get('customerId');
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
   const [profile, decisionsResult] = await Promise.all([
     fetchCustomerProfile(tenantId, customerId),
-    supabase!
+    serviceSupabase!
       .from('decision_log')
       .select('*')
       .eq('tenant_id', tenantId)

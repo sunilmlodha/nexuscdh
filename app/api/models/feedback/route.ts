@@ -14,7 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { IS_CONFIGURED, supabase } from '@/lib/supabase';
+import { IS_CONFIGURED, supabase, serviceSupabase } from '@/lib/supabase';
 
 const LEARNING_RATE = 0.05; // 5% nudge per outcome — conservative
 
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Load current propensity
-  const { data: action, error: fetchErr } = await supabase!
+  const { data: action, error: fetchErr } = await serviceSupabase!
     .from('actions')
     .select('id, base_propensity, name')
     .eq('id', actionId)
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
   updated = Math.max(0.01, Math.min(0.99, updated));
   updated = Math.round(updated * 10000) / 10000; // 4 decimal places
 
-  const { error: updateErr } = await supabase!
+  const { error: updateErr } = await serviceSupabase!
     .from('actions')
     .update({ base_propensity: updated, updated_at: new Date().toISOString() })
     .eq('id', actionId)
@@ -78,10 +78,10 @@ export async function POST(req: NextRequest) {
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
   // Also update adaptive_models predictions_today counter if a model exists for this action
-  await supabase!
+  await serviceSupabase!
     .from('adaptive_models')
     .update({
-      predictions_today: supabase!.rpc('increment', { row_id: actionId }) as unknown as number,
+      predictions_today: serviceSupabase!.rpc('increment', { row_id: actionId }) as unknown as number,
     })
     .eq('action_id', actionId)
     .eq('tenant_id', tenantId);
@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
   if (!IS_CONFIGURED) return NextResponse.json({ data: [], configured: false });
   if (!actionId)      return NextResponse.json({ error: 'actionId required' }, { status: 400 });
 
-  const { data } = await supabase!
+  const { data } = await serviceSupabase!
     .from('decision_log')
     .select('served, outcome, propensity, created_at')
     .eq('tenant_id', tenantId)

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateDecisionOutcome, insertConfigAudit, IS_CONFIGURED, supabase } from '@/lib/supabase';
+import { updateDecisionOutcome, insertConfigAudit, IS_CONFIGURED, supabase, serviceSupabase } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
   if (!IS_CONFIGURED) return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 });
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   if (!IS_CONFIGURED) return NextResponse.json({ data: [], configured: false });
   if (!customerId) return NextResponse.json({ error: 'customerId required' }, { status: 400 });
 
-  const { data } = await supabase!
+  const { data } = await serviceSupabase!
     .from('decision_log')
     .select('*')
     .eq('tenant_id', tenantId)

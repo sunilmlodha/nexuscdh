@@ -14,13 +14,20 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { randomBytes, createHash } from 'crypto';
 
-const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? '';
-const KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+const SUPA_URL    = process.env.NEXT_PUBLIC_SUPABASE_URL      ?? '';
+const KEY         = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY  ?? '';
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY      ?? KEY;
 
 export const IS_CONFIGURED = Boolean(SUPA_URL && KEY);
 
 export const supabase: SupabaseClient | null = IS_CONFIGURED
   ? createClient(SUPA_URL, KEY)
+  : null;
+
+// Server-side client using service role key — bypasses RLS.
+// Use this in API routes that need to read any tenant's data server-side.
+export const serviceSupabase: SupabaseClient | null = IS_CONFIGURED
+  ? createClient(SUPA_URL, SERVICE_KEY)
   : null;
 
 // ── Database types ────────────────────────────────────────────────────────────
@@ -192,8 +199,8 @@ export interface DBEventTrigger {
 const DEFAULT_TENANT = 'f0000000-0000-4000-a000-000000000001';
 
 export async function fetchStrategies(tenantId = DEFAULT_TENANT): Promise<DBStrategy[]> {
-  if (!supabase) return [];
-  const { data, error } = await supabase
+  if (!serviceSupabase) return [];
+  const { data, error } = await serviceSupabase
     .from('strategies').select('*').eq('tenant_id', tenantId)
     .order('created_at', { ascending: false });
   if (error) { console.error('fetchStrategies:', error); return []; }
@@ -204,8 +211,8 @@ export async function upsertStrategy(
   strategy: Partial<DBStrategy> & { name: string },
   tenantId = DEFAULT_TENANT
 ): Promise<DBStrategy | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase
+  if (!serviceSupabase) return null;
+  const { data, error } = await serviceSupabase
     .from('strategies')
     .upsert({ ...strategy, tenant_id: tenantId, updated_at: new Date().toISOString() })
     .select().single();
@@ -214,16 +221,16 @@ export async function upsertStrategy(
 }
 
 export async function fetchActions(tenantId = DEFAULT_TENANT): Promise<DBAction[]> {
-  if (!supabase) return [];
-  const { data, error } = await supabase
+  if (!serviceSupabase) return [];
+  const { data, error } = await serviceSupabase
     .from('actions').select('*').eq('tenant_id', tenantId).eq('status', 'active');
   if (error) { console.error('fetchActions:', error); return []; }
   return data ?? [];
 }
 
 export async function fetchPolicies(tenantId = DEFAULT_TENANT): Promise<DBContactPolicy[]> {
-  if (!supabase) return [];
-  const { data, error } = await supabase
+  if (!serviceSupabase) return [];
+  const { data, error } = await serviceSupabase
     .from('contact_policies').select('*').eq('tenant_id', tenantId);
   if (error) { console.error('fetchPolicies:', error); return []; }
   return data ?? [];
@@ -233,8 +240,8 @@ export async function insertDecisionLog(
   record: Omit<DBDecisionLog, 'id' | 'created_at'>,
   tenantId = DEFAULT_TENANT
 ): Promise<string | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase
+  if (!serviceSupabase) return null;
+  const { data, error } = await serviceSupabase
     .from('decision_log')
     .insert({ ...record, tenant_id: tenantId })
     .select('id').single();
@@ -246,8 +253,8 @@ export async function fetchDecisionLog(
   tenantId = DEFAULT_TENANT,
   limit = 100
 ): Promise<DBDecisionLog[]> {
-  if (!supabase) return [];
-  const { data, error } = await supabase
+  if (!serviceSupabase) return [];
+  const { data, error } = await serviceSupabase
     .from('decision_log').select('*').eq('tenant_id', tenantId)
     .order('created_at', { ascending: false }).limit(limit);
   if (error) { console.error('fetchDecisionLog:', error); return []; }
@@ -258,8 +265,8 @@ export async function updateDecisionOutcome(
   decisionId: string,
   outcome: 'accepted' | 'rejected' | 'ignored'
 ): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase
+  if (!serviceSupabase) return;
+  const { error } = await serviceSupabase
     .from('decision_log').update({ outcome }).eq('id', decisionId);
   if (error) console.error('updateDecisionOutcome:', error);
 }
@@ -268,8 +275,8 @@ export async function getContactCounts(
   tenantId: string,
   customerId: string
 ): Promise<{ today: number; week: number; month: number }> {
-  if (!supabase) return { today: 0, week: 0, month: 0 };
-  const { data } = await supabase.rpc('get_contact_counts', {
+  if (!serviceSupabase) return { today: 0, week: 0, month: 0 };
+  const { data } = await serviceSupabase.rpc('get_contact_counts', {
     p_tenant_id: tenantId,
     p_customer_id: customerId,
   });
@@ -285,8 +292,8 @@ export async function incrementContactCount(
   customerId: string,
   channelId: string
 ): Promise<void> {
-  if (!supabase) return;
-  await supabase.rpc('increment_contact_count', {
+  if (!serviceSupabase) return;
+  await serviceSupabase.rpc('increment_contact_count', {
     p_tenant_id: tenantId,
     p_customer_id: customerId,
     p_channel_id: channelId,
@@ -299,8 +306,8 @@ export async function fetchCustomerProfile(
   tenantId: string,
   customerId: string
 ): Promise<DBCustomerProfile | null> {
-  if (!supabase) return null;
-  const { data } = await supabase
+  if (!serviceSupabase) return null;
+  const { data } = await serviceSupabase
     .from('customer_profiles').select('*')
     .eq('tenant_id', tenantId).eq('customer_id', customerId).single();
   return data ?? null;
@@ -310,8 +317,8 @@ export async function fetchCustomerProfiles(
   tenantId = DEFAULT_TENANT,
   limit = 100
 ): Promise<DBCustomerProfile[]> {
-  if (!supabase) return [];
-  const { data } = await supabase
+  if (!serviceSupabase) return [];
+  const { data } = await serviceSupabase
     .from('customer_profiles').select('*').eq('tenant_id', tenantId)
     .order('last_seen_at', { ascending: false }).limit(limit);
   return data ?? [];
@@ -322,8 +329,8 @@ export async function upsertCustomerProfile(
   customerId: string,
   attributes: Record<string, unknown>
 ): Promise<void> {
-  if (!supabase) return;
-  await supabase.rpc('upsert_customer_profile', {
+  if (!serviceSupabase) return;
+  await serviceSupabase.rpc('upsert_customer_profile', {
     p_tenant_id: tenantId,
     p_customer_id: customerId,
     p_attributes: attributes,
@@ -334,10 +341,10 @@ export async function deleteCustomerProfile(
   tenantId: string,
   customerId: string
 ): Promise<number> {
-  if (!supabase) return 0;
-  await supabase.from('customer_profiles').delete()
+  if (!serviceSupabase) return 0;
+  await serviceSupabase.from('customer_profiles').delete()
     .eq('tenant_id', tenantId).eq('customer_id', customerId);
-  const { count } = await supabase.from('decision_log')
+  const { count } = await serviceSupabase.from('decision_log')
     .delete({ count: 'exact' })
     .eq('tenant_id', tenantId).eq('customer_id', customerId);
   return count ?? 0;
@@ -350,11 +357,11 @@ export async function createApiKey(
   name: string,
   createdBy?: string
 ): Promise<{ key: string; record: DBApiKey } | null> {
-  if (!supabase) return null;
+  if (!serviceSupabase) return null;
   const raw        = 'ncdh_' + randomBytes(32).toString('hex');
   const key_prefix = raw.substring(0, 12);
   const key_hash   = createHash('sha256').update(raw).digest('hex');
-  const { data, error } = await supabase
+  const { data, error } = await serviceSupabase
     .from('api_keys')
     .insert({ tenant_id: tenantId, name, key_prefix, key_hash, created_by: createdBy, status: 'active' })
     .select().single();
@@ -363,16 +370,16 @@ export async function createApiKey(
 }
 
 export async function listApiKeys(tenantId = DEFAULT_TENANT): Promise<DBApiKey[]> {
-  if (!supabase) return [];
-  const { data } = await supabase
+  if (!serviceSupabase) return [];
+  const { data } = await serviceSupabase
     .from('api_keys').select('*').eq('tenant_id', tenantId)
     .order('created_at', { ascending: false });
   return data ?? [];
 }
 
 export async function revokeApiKey(id: string): Promise<void> {
-  if (!supabase) return;
-  await supabase.from('api_keys').update({ status: 'revoked' }).eq('id', id);
+  if (!serviceSupabase) return;
+  await serviceSupabase.from('api_keys').update({ status: 'revoked' }).eq('id', id);
 }
 
 export async function validateApiKey(
@@ -380,14 +387,14 @@ export async function validateApiKey(
   fullKey: string,
   tenantId: string
 ): Promise<boolean> {
-  if (!supabase) return false;
+  if (!serviceSupabase) return false;
   const key_hash = createHash('sha256').update(fullKey).digest('hex');
-  const { data } = await supabase
+  const { data } = await serviceSupabase
     .from('api_keys').select('id')
     .eq('tenant_id', tenantId).eq('key_prefix', keyPrefix)
     .eq('key_hash', key_hash).eq('status', 'active').single();
   if (!data) return false;
-  await supabase.from('api_keys')
+  await serviceSupabase.from('api_keys')
     .update({ last_used_at: new Date().toISOString() }).eq('id', data.id);
   return true;
 }
@@ -395,8 +402,8 @@ export async function validateApiKey(
 // ── Experiments ───────────────────────────────────────────────────────────────
 
 export async function fetchExperiments(tenantId = DEFAULT_TENANT): Promise<DBExperiment[]> {
-  if (!supabase) return [];
-  const { data } = await supabase
+  if (!serviceSupabase) return [];
+  const { data } = await serviceSupabase
     .from('experiments').select('*').eq('tenant_id', tenantId)
     .order('created_at', { ascending: false });
   return data ?? [];
@@ -406,8 +413,8 @@ export async function upsertExperiment(
   exp: Partial<DBExperiment> & { name: string },
   tenantId = DEFAULT_TENANT
 ): Promise<DBExperiment | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase
+  if (!serviceSupabase) return null;
+  const { data, error } = await serviceSupabase
     .from('experiments')
     .upsert({ ...exp, tenant_id: tenantId, updated_at: new Date().toISOString() })
     .select().single();
@@ -418,8 +425,8 @@ export async function upsertExperiment(
 // ── Batch Jobs ────────────────────────────────────────────────────────────────
 
 export async function fetchBatchJobs(tenantId = DEFAULT_TENANT): Promise<DBBatchJob[]> {
-  if (!supabase) return [];
-  const { data } = await supabase
+  if (!serviceSupabase) return [];
+  const { data } = await serviceSupabase
     .from('batch_jobs').select('*').eq('tenant_id', tenantId)
     .order('created_at', { ascending: false });
   return data ?? [];
@@ -429,8 +436,8 @@ export async function upsertBatchJob(
   job: Partial<DBBatchJob> & { name: string },
   tenantId = DEFAULT_TENANT
 ): Promise<DBBatchJob | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase
+  if (!serviceSupabase) return null;
+  const { data, error } = await serviceSupabase
     .from('batch_jobs').upsert({ ...job, tenant_id: tenantId }).select().single();
   if (error) { console.error('upsertBatchJob:', error); return null; }
   return data;
@@ -442,8 +449,8 @@ export async function insertConfigAudit(
   record: Omit<DBConfigAudit, 'id' | 'created_at'>,
   tenantId = DEFAULT_TENANT
 ): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase
+  if (!serviceSupabase) return;
+  const { error } = await serviceSupabase
     .from('config_audit_log').insert({ ...record, tenant_id: tenantId });
   if (error) console.error('insertConfigAudit:', error);
 }
@@ -453,8 +460,8 @@ export async function fetchConfigAudit(
   entityType?: string,
   limit = 50
 ): Promise<DBConfigAudit[]> {
-  if (!supabase) return [];
-  let q = supabase.from('config_audit_log').select('*')
+  if (!serviceSupabase) return [];
+  let q = serviceSupabase.from('config_audit_log').select('*')
     .eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(limit);
   if (entityType) q = q.eq('entity_type', entityType);
   const { data } = await q;
@@ -464,8 +471,8 @@ export async function fetchConfigAudit(
 // ── Event Triggers ────────────────────────────────────────────────────────────
 
 export async function fetchEventTriggers(tenantId = DEFAULT_TENANT): Promise<DBEventTrigger[]> {
-  if (!supabase) return [];
-  const { data } = await supabase
+  if (!serviceSupabase) return [];
+  const { data } = await serviceSupabase
     .from('event_triggers').select('*').eq('tenant_id', tenantId)
     .order('created_at', { ascending: false });
   return data ?? [];
@@ -475,8 +482,8 @@ export async function upsertEventTrigger(
   trigger: Partial<DBEventTrigger> & { name: string; event_type: string },
   tenantId = DEFAULT_TENANT
 ): Promise<DBEventTrigger | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase
+  if (!serviceSupabase) return null;
+  const { data, error } = await serviceSupabase
     .from('event_triggers')
     .upsert({ ...trigger, tenant_id: tenantId, updated_at: new Date().toISOString() })
     .select().single();
