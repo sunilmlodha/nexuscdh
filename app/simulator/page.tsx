@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { usePermission } from '@/lib/auth';
-import { IS_CONFIGURED } from '@/lib/supabase';
+const IS_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 import { Zap, CheckCircle2, AlertTriangle, Loader2, Plus, Minus, Database, AlertCircle, Clock, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
