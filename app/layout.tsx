@@ -46,6 +46,7 @@ const NAV_SECTIONS = [
       { href: '/seed',       label: 'Demo Data Seeder',  icon: Share2,          permission: null },
       { href: '/operations', label: 'Operations',        icon: Activity,        permission: 'operations:read' },
       { href: '/triggers',  label: 'Event Triggers',  icon: Zap,            permission: 'triggers:read' },
+      { href: '/apiref',    label: 'API Reference',   icon: Key,            permission: null },
       { href: '/apikeys',   label: 'API Keys',        icon: Key,            permission: 'settings:read' },
       { href: '/audit',     label: 'Audit Log',       icon: ScrollText,     permission: 'settings:read' },
       { href: '/configuration', label: 'Industry Templates', icon: Sparkles,   permission: 'settings:read' },
