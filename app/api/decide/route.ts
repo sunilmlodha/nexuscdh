@@ -418,12 +418,34 @@ export async function GET(req: NextRequest) {
   candidates.sort((a, b) => b.propensity - a.propensity);
   const winner = candidates[0] ?? null;
 
-  // Persist profile
+  // Persist profile + decision log
   await upsertCustomerProfile(tenantId, customerId, mergedAttrs as Record<string, unknown>);
+
+  let decisionId: string | null = null;
+  if (winner) {
+    decisionId = await insertDecisionLog({
+      tenant_id:           tenantId,
+      customer_id:         customerId,
+      strategy_id:         winner.strategy.id,
+      strategy_name:       winner.strategy.name,
+      action_id:           winner.action.id,
+      action_name:         winner.action.name,
+      channel_id:          winner.action.channels[0] ?? 'web',
+      served:              true,
+      propensity:          winner.action.base_propensity,
+      customer_attributes: mergedAttrs as Record<string, unknown>,
+      trace:               [{ step: 'global-nba', strategiesEvaluated: activeStrategies.length, candidatesFound: candidates.length }],
+      decision_latency_ms: Date.now() - start,
+    }, tenantId);
+
+    // Increment contact frequency counter
+    await incrementContactCount(tenantId, customerId, winner.action.channels[0] ?? 'web');
+  }
 
   return NextResponse.json({
     globalDecision:       true,
     served:               winner !== null,
+    decisionId:           decisionId ?? undefined,
     action: winner ? {
       id:         winner.action.id,
       name:       winner.action.name,
@@ -439,6 +461,7 @@ export async function GET(req: NextRequest) {
     suppressedCount,
     noMatchCount,
     profileLoaded:        Object.keys(profileAttrs).length > 0,
+    persistedToDatabase:  decisionId !== null,
     latencyMs:            Date.now() - start,
   });
 }
