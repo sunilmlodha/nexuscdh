@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { usePermission } from '@/lib/auth';
 import { IS_CONFIGURED } from '@/lib/supabase';
@@ -55,6 +55,16 @@ export default function SimulatorPage() {
   const [minPropensity, setMinPropensity] = useState(0.1);
 
   const activeStrategies = strategies.filter(s => s.status === 'active');
+
+  // When the strategy list changes, reset selStrategy if the current ID is stale
+  const strategyIds = activeStrategies.map(s => s.id).join(',');
+  useEffect(() => {
+    if (!strategyIds) return;
+    if (!selStrategy || !strategyIds.includes(selStrategy)) {
+      setSelStrategy(activeStrategies[0]?.id ?? '');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [strategyIds]);
 
   const buildAttributes = () => {
     const out: Record<string,unknown> = {};
