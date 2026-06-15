@@ -41,7 +41,7 @@ import { randomUUID } from 'crypto';
 const TENANT = process.env.NEXUS_TENANT_ID ?? 'f0000000-0000-4000-a000-000000000001';
 
 // Map Pega pyOutcome values → NexusCDH outcomes (used in capture response)
-export const PEGA_OUTCOME_MAP: Record<string, string> = {
+const PEGA_OUTCOME_MAP: Record<string, string> = {
   Clicked:    'accepted',
   Accepted:   'accepted',
   Converted:  'accepted',
