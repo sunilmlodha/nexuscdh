@@ -354,20 +354,35 @@ export async function POST(req: NextRequest) {
     const { error: polErr } = await client.from('contact_policies').upsert(POLICIES, { onConflict: 'id' });
     results.contact_policies = polErr ? `error: ${polErr.message}` : POLICIES.length;
 
-    // strategies
-    const { error: strErr } = await client.from('strategies').upsert(STRATEGIES, { onConflict: 'id' });
+    // strategies — try with eligibility_rules first; fall back without if column missing
+    let { error: strErr } = await client.from('strategies').upsert(STRATEGIES, { onConflict: 'id' });
+    if (strErr?.message?.includes('eligibility_rules')) {
+      const stripped = STRATEGIES.map(({ eligibility_rules: _er, ...rest }) => rest);
+      const { error: strErr2 } = await client.from('strategies').upsert(stripped, { onConflict: 'id' });
+      strErr = strErr2 ?? null;
+    }
     results.strategies = strErr ? `error: ${strErr.message}` : STRATEGIES.length;
 
     // audiences
     const { error: audErr } = await client.from('audiences').upsert(AUDIENCES, { onConflict: 'id' });
     results.audiences = audErr ? `error: ${audErr.message}` : AUDIENCES.length;
 
-    // event triggers
-    const { error: trgErr } = await client.from('event_triggers').upsert(EVENT_TRIGGERS, { onConflict: 'id' });
+    // event triggers — fall back without description/status if columns missing
+    let { error: trgErr } = await client.from('event_triggers').upsert(EVENT_TRIGGERS, { onConflict: 'id' });
+    if (trgErr?.message?.includes('description') || trgErr?.message?.includes('status')) {
+      const stripped = EVENT_TRIGGERS.map(({ description: _d, status: _s, ...rest }) => rest);
+      const { error: trgErr2 } = await client.from('event_triggers').upsert(stripped, { onConflict: 'id' });
+      trgErr = trgErr2 ?? null;
+    }
     results.event_triggers = trgErr ? `error: ${trgErr.message}` : EVENT_TRIGGERS.length;
 
-    // experiments
-    const { error: expErr } = await client.from('experiments').upsert(EXPERIMENTS, { onConflict: 'id' });
+    // experiments — fall back without strategy_id/metric/results if columns missing
+    let { error: expErr } = await client.from('experiments').upsert(EXPERIMENTS, { onConflict: 'id' });
+    if (expErr?.message?.includes('strategy_id') || expErr?.message?.includes('metric') || expErr?.message?.includes('results') || expErr?.message?.includes('promote_threshold')) {
+      const stripped = EXPERIMENTS.map(({ strategy_id: _s, metric: _m, results: _r, promote_threshold: _p, ...rest }) => rest);
+      const { error: expErr2 } = await client.from('experiments').upsert(stripped, { onConflict: 'id' });
+      expErr = expErr2 ?? null;
+    }
     results.experiments = expErr ? `error: ${expErr.message}` : EXPERIMENTS.length;
 
     // customer profiles via upsert
