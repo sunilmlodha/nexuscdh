@@ -67,7 +67,7 @@ export default function SimulatePage() {
     fetch('/api/strategies?tenantId=f0000000-0000-4000-a000-000000000001')
       .then(r => r.json())
       .then(data => {
-        const list: SimStrategy[] = Array.isArray(data) ? data : data.strategies ?? [];
+        const list: SimStrategy[] = Array.isArray(data) ? data : data.data ?? data.strategies ?? [];
         const active = list.filter(s => s.status === 'active');
         setStrategies(active);
         if (active.length > 0) setStrategyId(active[0].id);
