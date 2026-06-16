@@ -11,7 +11,7 @@ import {
   Users, Brain, Cpu, Activity, Settings, LogOut,
   ChevronRight, Database, UserCheck, Zap, Sparkles,
   UserSearch, FlaskConical, BarChart3, Key, ScrollText, Wand2,
-  Share2, Workflow,
+  Share2, Workflow, Package, Route,
 } from 'lucide-react';
 
 const NAV_SECTIONS = [
@@ -19,8 +19,10 @@ const NAV_SECTIONS = [
     label: 'Workspace',
     items: [
       { href: '/',          label: 'Dashboard',      icon: LayoutDashboard, permission: null },
-      { href: '/taxonomy',  label: 'Taxonomy',       icon: Layers,          permission: 'taxonomy:read' },
-      { href: '/strategies',label: 'Strategies',     icon: GitBranch,       permission: 'strategies:read' },
+      { href: '/taxonomy',    label: 'Taxonomy',             icon: Layers,   permission: 'taxonomy:read' },
+      { href: '/treatments', label: 'Treatments & Bundles', icon: Package,  permission: 'taxonomy:read' },
+      { href: '/journeys',   label: 'Customer Journeys',    icon: Route,    permission: 'strategies:read' },
+      { href: '/strategies', label: 'Strategies',           icon: GitBranch,permission: 'strategies:read' },
       { href: '/channels',  label: 'Channels',       icon: Radio,           permission: 'channels:read' },
       { href: '/policies',  label: 'Engagement Policies', icon: Shield,     permission: 'policies:read' },
     ],
