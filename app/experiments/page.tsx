@@ -106,7 +106,7 @@ function ExperimentModal({
       }}
     >
       <div style={{
-        background: 'var(--card)', border: '1px solid var(--border)',
+        background: 'var(--bg-panel)', border: '1px solid var(--border)',
         borderRadius: 12, width: '100%', maxWidth: 600,
         maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
       }}>
@@ -115,7 +115,7 @@ function ExperimentModal({
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '20px 24px', borderBottom: '1px solid var(--border)',
         }}>
-          <span style={{ fontWeight: 600, fontSize: 16, color: 'var(--text)' }}>
+          <span style={{ fontWeight: 600, fontSize: 16, color: 'var(--text-primary)' }}>
             {exp ? 'Edit Experiment' : 'New Experiment'}
           </span>
           <button
@@ -140,7 +140,7 @@ function ExperimentModal({
               autoFocus
               style={{
                 width: '100%', padding: '8px 12px', border: '1px solid var(--border)',
-                borderRadius: 6, fontSize: 13, color: 'var(--text)', background: 'var(--bg)',
+                borderRadius: 6, fontSize: 13, color: 'var(--text-primary)', background: 'var(--bg)',
                 outline: 'none', boxSizing: 'border-box',
               }}
             />
@@ -158,7 +158,7 @@ function ExperimentModal({
               rows={2}
               style={{
                 width: '100%', padding: '8px 12px', border: '1px solid var(--border)',
-                borderRadius: 6, fontSize: 13, color: 'var(--text)', background: 'var(--bg)',
+                borderRadius: 6, fontSize: 13, color: 'var(--text-primary)', background: 'var(--bg)',
                 outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit',
               }}
             />
@@ -174,7 +174,7 @@ function ExperimentModal({
               onChange={e => setStatus(e.target.value)}
               style={{
                 width: '100%', padding: '8px 12px', border: '1px solid var(--border)',
-                borderRadius: 6, fontSize: 13, color: 'var(--text)', background: 'var(--bg)',
+                borderRadius: 6, fontSize: 13, color: 'var(--text-primary)', background: 'var(--bg)',
                 outline: 'none', boxSizing: 'border-box',
               }}
             >
@@ -229,7 +229,7 @@ function ExperimentModal({
                     placeholder={`Variant ${String.fromCharCode(65 + i)}`}
                     style={{
                       padding: '6px 10px', border: '1px solid var(--border)',
-                      borderRadius: 6, fontSize: 12, color: 'var(--text)', background: 'white',
+                      borderRadius: 6, fontSize: 12, color: 'var(--text-primary)', background: 'white',
                       outline: 'none',
                     }}
                   />
@@ -256,7 +256,7 @@ function ExperimentModal({
                       max={100}
                       style={{
                         width: '100%', padding: '6px 10px', border: '1px solid var(--border)',
-                        borderRadius: 6, fontSize: 12, color: 'var(--text)', background: 'white',
+                        borderRadius: 6, fontSize: 12, color: 'var(--text-primary)', background: 'white',
                         outline: 'none',
                       }}
                     />
@@ -289,7 +289,7 @@ function ExperimentModal({
                 onChange={e => setAutoPromote(e.target.checked)}
                 style={{ width: 15, height: 15, cursor: 'pointer' }}
               />
-              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>
                 Auto-promote winner
               </span>
             </label>
@@ -307,7 +307,7 @@ function ExperimentModal({
                   step={0.01}
                   style={{
                     width: 80, padding: '6px 10px', border: '1px solid var(--border)',
-                    borderRadius: 6, fontSize: 12, color: 'var(--text)', background: 'white',
+                    borderRadius: 6, fontSize: 12, color: 'var(--text-primary)', background: 'white',
                     outline: 'none',
                   }}
                 />
@@ -410,7 +410,7 @@ export default function ExperimentsPage() {
       {/* Page header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Experiments</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Experiments</h1>
           <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '6px 0 0' }}>
             Champion/Challenger A/B testing for strategies
           </p>
@@ -442,10 +442,10 @@ export default function ExperimentsPage() {
           display: 'flex', flexDirection: 'column', alignItems: 'center',
           justifyContent: 'center', padding: '80px 24px',
           border: '1px solid var(--border)', borderRadius: 12,
-          background: 'var(--card)',
+          background: 'var(--bg-panel)',
         }}>
           <FlaskConical size={64} style={{ color: 'var(--brand-accent)', marginBottom: 20 }} />
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', margin: '0 0 8px' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 8px' }}>
             No experiments yet
           </h2>
           <p style={{ fontSize: 14, color: 'var(--text-muted)', textAlign: 'center', maxWidth: 400, margin: 0 }}>
@@ -475,7 +475,7 @@ export default function ExperimentsPage() {
               <div
                 key={exp.id}
                 style={{
-                  background: 'var(--card)', border: '1px solid var(--border)',
+                  background: 'var(--bg-panel)', border: '1px solid var(--border)',
                   borderRadius: 12, overflow: 'hidden',
                   display: 'flex', flexDirection: 'column',
                   boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
@@ -485,7 +485,7 @@ export default function ExperimentsPage() {
                 <div style={{ padding: '18px 20px 12px' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--text)', marginBottom: 4 }}>
+                      <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--text-primary)', marginBottom: 4 }}>
                         {exp.name}
                       </div>
                       {exp.description && (
@@ -515,7 +515,7 @@ export default function ExperimentsPage() {
                       return (
                       <div key={i}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                          <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 500 }}>
+                          <span style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 500 }}>
                             {v.name || `Variant ${String.fromCharCode(65 + i)}`}
                             {v.strategyId && (
                               <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 6 }}>
@@ -553,7 +553,7 @@ export default function ExperimentsPage() {
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 2 }}>
                           {variantName}
                         </div>
-                        <div style={{ fontSize: 12, color: 'var(--text)' }}>
+                        <div style={{ fontSize: 12, color: 'var(--text-primary)' }}>
                           <span style={{ fontWeight: 600 }}>{s.served.toLocaleString()}</span> served
                           {' · '}
                           <span style={{ fontWeight: 600 }}>
