@@ -38,7 +38,7 @@ interface DBModel {
   };
 }
 
-interface HistoryPoint { propensity: number; outcome: string | null; created_at: string; }
+interface HistoryPoint { propensity: number; outcome: string | null; created_at: string; channel?: string; date?: string; }
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
   shadow:   { label: 'Shadow',   color: '#6366F1', bg: '#EEF2FF' },
@@ -323,6 +323,10 @@ function ModelModal({
   );
 }
 
+interface ChannelBreakdown {
+  channel: string; served: number; accepted: number; acceptanceRate: number;
+}
+
 function ModelCard({
   model, actions, onEdit, onDelete, onPromote,
 }: {
@@ -332,8 +336,10 @@ function ModelCard({
   onDelete: () => void;
   onPromote: (status: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const [history, setHistory]   = useState<HistoryPoint[]>([]);
+  const [expanded, setExpanded]             = useState(false);
+  const [history, setHistory]               = useState<HistoryPoint[]>([]);
+  const [channelBreakdown, setChannelBreakdown] = useState<ChannelBreakdown[]>([]);
+  const [recentResponses, setRecentResponses]   = useState<HistoryPoint[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
   const action = actions.find(a => a.id === model.action_id);
@@ -343,9 +349,19 @@ function ModelCard({
   const loadHistory = async () => {
     if (history.length > 0) { setExpanded(e => !e); return; }
     setLoadingHistory(true);
-    const r = await fetch(`/api/models?id=${model.id}&tenantId=${TENANT_ID}`);
-    const d = await r.json();
-    setHistory(d.history ?? []);
+    // Load propensity history (from /api/models detail)
+    const [histRes, feedbackRes] = await Promise.all([
+      fetch(`/api/models?id=${model.id}&tenantId=${TENANT_ID}`),
+      fetch(`/api/models/feedback?actionId=${model.action_id}&tenantId=${TENANT_ID}`),
+    ]);
+    const histData     = await histRes.json();
+    const feedbackData = await feedbackRes.json();
+    setHistory(histData.history ?? []);
+    setChannelBreakdown(feedbackData.channelBreakdown ?? []);
+    // Most recent 10 responses with an outcome
+    setRecentResponses(
+      (feedbackData.history ?? []).filter((h: HistoryPoint) => h.outcome).slice(0, 10)
+    );
     setLoadingHistory(false);
     setExpanded(true);
   };
@@ -472,35 +488,116 @@ function ModelCard({
           </button>
         </div>
 
-        {/* Expanded history chart */}
+        {/* Expanded section: propensity chart + channel breakdown + recent responses */}
         {expanded && (
-          <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 12,
-              textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <TrendingUp size={13} /> Propensity over last {history.length} decisions
-            </div>
-            {propensities.length < 2 ? (
-              <div style={{ fontSize: 13, color: '#9CA3AF', padding: '20px 0', textAlign: 'center' }}>
-                Not enough decisions yet — submit feedback outcomes to see the learning curve.
+          <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 16,
+            display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+            {/* Propensity history chart */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 10,
+                textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <TrendingUp size={13} /> Propensity learning curve ({history.length} decisions)
               </div>
-            ) : (
-              <>
-                <Sparkline points={propensities} width={560} height={60} />
-                <div style={{ display: 'flex', gap: 16, marginTop: 14, flexWrap: 'wrap' }}>
-                  {(['accepted','rejected','ignored'] as const).map(outcome => {
-                    const count = history.filter(h => h.outcome === outcome).length;
-                    const colors: Record<string, string> = { accepted:'#059669', rejected:'#DC2626', ignored:'#9CA3AF' };
+              {propensities.length < 2 ? (
+                <div style={{ fontSize: 13, color: '#9CA3AF', padding: '12px 0' }}>
+                  Not enough decisions yet — channel responses will populate this chart.
+                </div>
+              ) : (
+                <>
+                  <Sparkline points={propensities} width={560} height={60} />
+                  <div style={{ display: 'flex', gap: 16, marginTop: 10, flexWrap: 'wrap' }}>
+                    {(['accepted','rejected','ignored'] as const).map(outcome => {
+                      const count = history.filter(h => h.outcome === outcome).length;
+                      const colors: Record<string, string> = { accepted:'#059669', rejected:'#DC2626', ignored:'#9CA3AF' };
+                      return (
+                        <div key={outcome} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: colors[outcome] }} />
+                          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                            {outcome}: <strong>{count}</strong>
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Channel response breakdown */}
+            {channelBreakdown.length > 0 && (
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 10,
+                  textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Response Capture by Channel
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+                  {channelBreakdown.map(ch => (
+                    <div key={ch.channel} style={{ background: '#F9FAFB', border: '1px solid #E5E7EB',
+                      borderRadius: 8, padding: '10px 14px' }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', textTransform: 'capitalize', marginBottom: 6 }}>
+                        {ch.channel}
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
+                        {(ch.acceptanceRate * 100).toFixed(1)}%
+                      </div>
+                      <div style={{ fontSize: 11, color: '#9CA3AF' }}>
+                        {ch.accepted}/{ch.served} served
+                      </div>
+                      {/* Acceptance bar */}
+                      <div style={{ height: 3, background: '#E5E7EB', borderRadius: 2, marginTop: 6 }}>
+                        <div style={{ height: '100%', width: `${ch.acceptanceRate * 100}%`,
+                          background: ch.acceptanceRate > 0.5 ? '#059669' : ch.acceptanceRate > 0.2 ? '#D97706' : '#DC2626',
+                          borderRadius: 2, transition: 'width 0.4s' }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recent channel responses feed */}
+            {recentResponses.length > 0 && (
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 10,
+                  textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Recent Responses (last {recentResponses.length})
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                  {recentResponses.map((r, i) => {
+                    const outcomeColors: Record<string, { bg: string; color: string }> = {
+                      accepted: { bg: '#F0FDF4', color: '#059669' },
+                      rejected: { bg: '#FEF2F2', color: '#DC2626' },
+                      ignored:  { bg: '#F9FAFB', color: '#9CA3AF' },
+                    };
+                    const oc = outcomeColors[r.outcome ?? ''] ?? outcomeColors.ignored;
                     return (
-                      <div key={outcome} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: colors[outcome] }} />
-                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                          {outcome}: <strong>{count}</strong>
+                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '90px 80px 80px 1fr',
+                        gap: 12, padding: '7px 12px', background: 'var(--card)',
+                        borderBottom: i < recentResponses.length - 1 ? '1px solid var(--border)' : 'none',
+                        alignItems: 'center', fontSize: 12 }}>
+                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20,
+                          background: oc.bg, color: oc.color, fontWeight: 600, textAlign: 'center' }}>
+                          {r.outcome}
+                        </span>
+                        <span style={{ color: '#6B7280', textTransform: 'capitalize' }}>{r.channel ?? '—'}</span>
+                        <span style={{ fontFamily: 'monospace', color: 'var(--text)' }}>
+                          {r.propensity != null ? r.propensity.toFixed(4) : '—'}
+                        </span>
+                        <span style={{ color: '#9CA3AF', fontSize: 11 }}>
+                          {r.date ? new Date(r.date).toLocaleString() : ''}
                         </span>
                       </div>
                     );
                   })}
                 </div>
-              </>
+              </div>
+            )}
+
+            {channelBreakdown.length === 0 && recentResponses.length === 0 && (
+              <div style={{ fontSize: 13, color: '#9CA3AF', padding: '4px 0' }}>
+                No channel responses recorded yet. Responses arrive via <code>/api/outcome</code> or <code>/api/v1/interactions/&#123;id&#125;/responses</code>.
+              </div>
             )}
           </div>
         )}
