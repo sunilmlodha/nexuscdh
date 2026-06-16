@@ -9,7 +9,7 @@ import HydrateStore from '@/components/HydrateStore';
 import {
   LayoutDashboard, Layers, GitBranch, Radio, Shield,
   Users, Brain, Cpu, Activity, Settings, LogOut,
-  ChevronRight, Database, UserCheck, Zap, Sparkles,
+  ChevronRight, UserCheck, Zap, Sparkles,
   UserSearch, FlaskConical, BarChart3, Key, ScrollText, Wand2,
   Share2, Workflow, Package, Route,
 } from 'lucide-react';
@@ -44,7 +44,6 @@ const NAV_SECTIONS = [
   {
     label: 'Operations',
     items: [
-      { href: '/car',        label: 'CAR / Profiles',    icon: Database,        permission: null },
       { href: '/seed',       label: 'Demo Data Seeder',  icon: Share2,          permission: null },
       { href: '/operations', label: 'Operations',        icon: Activity,        permission: 'operations:read' },
       { href: '/triggers',  label: 'Event Triggers',  icon: Zap,            permission: 'triggers:read' },

@@ -41,7 +41,7 @@ const FLOW_STEPS: FlowStep[] = [
     icon: Database,
     color: '#0288d1',
     bg: '#e1f5fe',
-    page: '/car',
+    page: '/profiles',
     description: 'The event triggers a profile lookup in the Customer Attribute Repository (CAR). The full profile — demographics, products, behavioural signals — is loaded for the decision context.',
     inputs: ['Customer ID from event', 'Inbound CDP profile sync', 'Batch CSV ingestion'],
     outputs: ['Complete attribute set', 'Segment classification', 'Propensity model features'],
