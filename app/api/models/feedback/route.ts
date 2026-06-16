@@ -91,25 +91,21 @@ export async function POST(req: NextRequest) {
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
-  // Increment predictions_today on adaptive_models using direct SQL arithmetic
-  await serviceSupabase!.rpc('increment_predictions_today', { p_action_id: actionId, p_tenant_id: tenantId })
-    .then(() => null)
-    .catch(() => {
-      // Fallback: fetch current value and increment manually
-      return serviceSupabase!
-        .from('adaptive_models')
-        .select('id, predictions_today')
-        .eq('action_id', actionId)
-        .eq('tenant_id', tenantId)
-        .single()
-        .then(({ data: m }) => {
-          if (m) {
-            return serviceSupabase!
-              .from('adaptive_models')
-              .update({ predictions_today: (m.predictions_today ?? 0) + 1 })
-              .eq('id', m.id);
-          }
-        });
+  // Increment predictions_today on adaptive_models (best-effort, fire-and-forget)
+  serviceSupabase!
+    .from('adaptive_models')
+    .select('id, predictions_today')
+    .eq('action_id', actionId)
+    .eq('tenant_id', tenantId)
+    .single()
+    .then(({ data: m }) => {
+      if (m) {
+        serviceSupabase!
+          .from('adaptive_models')
+          .update({ predictions_today: (m.predictions_today ?? 0) + 1 })
+          .eq('id', m.id)
+          .then(() => null);
+      }
     });
 
   return NextResponse.json({

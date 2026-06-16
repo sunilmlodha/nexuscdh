@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import { FlaskConical, Plus, Play, Pause, CheckCircle2, Trash2, X, Save } from 'lucide-react';
 
+const TENANT_ID = 'f0000000-0000-4000-a000-000000000001';
+
 interface Variant {
   name: string;
   strategyId: string;
@@ -20,6 +22,8 @@ interface Experiment {
   stats?: Record<string, { total: number; served: number; accepted: number; acceptanceRate: number }>;
 }
 
+interface StrategyOption { id: string; name: string; }
+
 const STATUS_STYLES: Record<string, { background: string; color: string; label: string }> = {
   draft:     { background: '#F3F4F6', color: '#6B7280', label: 'Draft' },
   running:   { background: '#DBEAFE', color: '#1D4ED8', label: 'Running' },
@@ -35,10 +39,12 @@ function ExperimentModal({
   exp,
   onClose,
   onSaved,
+  strategies,
 }: {
   exp: Experiment | null;
   onClose: () => void;
   onSaved: () => void;
+  strategies: StrategyOption[];
 }) {
   const [name, setName] = useState(exp?.name ?? '');
   const [description, setDescription] = useState(exp?.description ?? '');
@@ -68,7 +74,7 @@ function ExperimentModal({
   const save = async () => {
     if (!name.trim()) return;
     setSaving(true);
-    const body: Experiment = {
+    const body = {
       ...(exp?.id ? { id: exp.id } : {}),
       name,
       description,
@@ -76,14 +82,15 @@ function ExperimentModal({
       variants,
       auto_promote: autoPromote,
       promotion_threshold: threshold,
+      tenantId: TENANT_ID,
     };
     try {
-      await fetch('/api/experiments', {
+      const r = await fetch('/api/experiments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      onSaved();
+      if (r.ok) onSaved();
     } finally {
       setSaving(false);
     }
@@ -226,16 +233,20 @@ function ExperimentModal({
                       outline: 'none',
                     }}
                   />
-                  <input
+                  <select
                     value={v.strategyId}
                     onChange={e => updateVariant(i, 'strategyId', e.target.value)}
-                    placeholder="Strategy ID"
                     style={{
                       padding: '6px 10px', border: '1px solid var(--border)',
-                      borderRadius: 6, fontSize: 12, color: 'var(--text)', background: 'white',
-                      outline: 'none',
+                      borderRadius: 6, fontSize: 12, color: v.strategyId ? 'var(--text)' : '#9CA3AF',
+                      background: 'white', outline: 'none', width: '100%',
                     }}
-                  />
+                  >
+                    <option value="">Select strategy…</option>
+                    {strategies.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <input
                       type="number"
@@ -342,6 +353,7 @@ function ExperimentModal({
 
 export default function ExperimentsPage() {
   const [experiments, setExperiments] = useState<Experiment[]>([]);
+  const [strategies, setStrategies] = useState<StrategyOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingExp, setEditingExp] = useState<Experiment | null>(null);
@@ -349,7 +361,7 @@ export default function ExperimentsPage() {
   const fetchExperiments = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/experiments?tenantId=f0000000-0000-4000-a000-000000000001');
+      const res = await fetch(`/api/experiments?tenantId=${TENANT_ID}`);
       if (res.ok) {
         const data = await res.json();
         setExperiments(Array.isArray(data) ? data : (data.data ?? data.experiments ?? []));
@@ -361,7 +373,17 @@ export default function ExperimentsPage() {
     }
   };
 
-  useEffect(() => { fetchExperiments(); }, []);
+  useEffect(() => {
+    fetchExperiments();
+    // Load strategies for the variant selector dropdown
+    fetch(`/api/strategies?tenantId=${TENANT_ID}`)
+      .then(r => r.json())
+      .then(d => {
+        const rows: Array<{ id: string; name: string }> = d.data ?? d.strategies ?? [];
+        setStrategies(rows.map(s => ({ id: s.id, name: s.name })));
+      })
+      .catch(() => {});
+  }, []);
 
   const openNew = () => { setEditingExp(null); setShowModal(true); };
   const openEdit = (exp: Experiment) => { setEditingExp(exp); setShowModal(true); };
@@ -378,7 +400,7 @@ export default function ExperimentsPage() {
     await fetch('/api/experiments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...exp, status: newStatus }),
+      body: JSON.stringify({ ...exp, status: newStatus, tenantId: TENANT_ID }),
     });
     fetchExperiments();
   };
@@ -488,14 +510,16 @@ export default function ExperimentsPage() {
                     Variants
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                    {(exp.variants ?? []).map((v, i) => (
+                    {(exp.variants ?? []).map((v, i) => {
+                      const stratName = strategies.find(s => s.id === v.strategyId)?.name ?? v.strategyId;
+                      return (
                       <div key={i}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
                           <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 500 }}>
                             {v.name || `Variant ${String.fromCharCode(65 + i)}`}
                             {v.strategyId && (
                               <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 6 }}>
-                                · {v.strategyId}
+                                · {stratName}
                               </span>
                             )}
                           </span>
@@ -512,7 +536,8 @@ export default function ExperimentsPage() {
                           }} />
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -638,6 +663,7 @@ export default function ExperimentsPage() {
           exp={editingExp}
           onClose={closeModal}
           onSaved={handleSaved}
+          strategies={strategies}
         />
       )}
     </div>
