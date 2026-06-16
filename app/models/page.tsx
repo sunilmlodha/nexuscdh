@@ -1,146 +1,678 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useStore } from '@/lib/store';
-import { usePermission } from '@/lib/auth';
-import { Brain, Send, CheckCircle } from 'lucide-react';
-import type { AdaptiveModel } from '@/lib/store';
+import { Brain, Plus, ChevronDown, ChevronUp, Trash2, X, Save, Activity, TrendingUp, Zap, Eye } from 'lucide-react';
 
-export default function ModelsPage() {
-  const { actions } = useStore();
-  const canWrite = usePermission('models:write');
-  const [models, setModels] = useState<AdaptiveModel[]>([]);
-  const [loadingModels, setLoadingModels] = useState(true);
+const TENANT_ID = 'f0000000-0000-4000-a000-000000000001';
 
-  useEffect(() => {
-    fetch('/api/models?tenantId=f0000000-0000-4000-a000-000000000001')
-      .then(r => r.json())
-      .then(d => {
-        const rows = (d.data ?? []) as Record<string, unknown>[];
-        setModels(rows.map(m => ({
-          id:              String(m.id ?? ''),
-          name:            String(m.name ?? ''),
-          description:     m.description ? String(m.description) : undefined,
-          actionId:        String(m.action_id ?? ''),
-          modelType:       (m.model_type ?? 'logistic_regression') as AdaptiveModel['modelType'],
-          features:        (m.features as string[]) ?? [],
-          auc:             Number(m.auc ?? 0),
-          liftAtDecile1:   Number(m.lift_at_decile1 ?? 0),
-          trainedAt:       String(m.trained_at ?? ''),
-          status:          (m.status ?? 'shadow') as AdaptiveModel['status'],
-          predictionsToday: Number(m.predictions_today ?? 0),
-          createdAt:       String(m.created_at ?? ''),
-        })));
-      })
-      .catch(() => {})
-      .finally(() => setLoadingModels(false));
-  }, []);
-  const STATUS_BADGE: Record<string,string> = { live:'badge-green', training:'badge-amber', shadow:'badge-blue', retired:'badge-gray' };
+const MODEL_TYPES = [
+  { value: 'logistic_regression', label: 'Logistic Regression', desc: 'Fast, interpretable, good baseline' },
+  { value: 'gradient_boosting',   label: 'Gradient Boosting',   desc: 'Higher accuracy on non-linear patterns' },
+  { value: 'neural_net',          label: 'Neural Network',      desc: 'Best for complex feature interactions' },
+  { value: 'bayesian',            label: 'Bayesian',            desc: 'Incorporates prior beliefs, great for small data' },
+];
 
-  const [fbDecisionId, setFbDecisionId] = useState('');
-  const [fbOutcome, setFbOutcome] = useState<'accepted'|'rejected'|'ignored'>('accepted');
-  const [fbStatus, setFbStatus] = useState<'idle'|'sending'|'done'|'error'>('idle');
-  const [fbMsg, setFbMsg] = useState('');
+const STANDARD_FEATURES = [
+  'age', 'tenure_months', 'product_count', 'credit_score', 'income_band',
+  'channel_preference', 'last_contact_days', 'churn_score', 'nbo_score',
+  'consentGiven', 'segment', 'region',
+];
 
-  const sendFeedback = async () => {
-    if (!fbDecisionId.trim()) return;
-    setFbStatus('sending');
-    try {
-      const r = await fetch('/api/models/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ decisionId: fbDecisionId.trim(), outcome: fbOutcome, tenantId: 'f0000000-0000-4000-a000-000000000001' }),
-      });
-      const j = await r.json();
-      if (!r.ok) { setFbMsg(j.error ?? 'Failed'); setFbStatus('error'); return; }
-      setFbMsg(`Propensity updated: ${j.before?.toFixed(3) ?? '?'} → ${j.after?.toFixed(3) ?? '?'}`);
-      setFbStatus('done');
-      setFbDecisionId('');
-    } catch { setFbMsg('Network error'); setFbStatus('error'); }
-    setTimeout(() => setFbStatus('idle'), 4000);
+interface DBModel {
+  id: string;
+  name: string;
+  description?: string;
+  action_id: string;
+  model_type: string;
+  features: string[];
+  auc: number;
+  lift_at_decile1: number;
+  trained_at: string;
+  predictions_today: number;
+  status: string;
+  created_at: string;
+  _stats?: {
+    served: number; accepted: number; rejected: number;
+    acceptanceRate: number; totalDecisions: number;
+    currentPropensity: number | null;
+  };
+}
+
+interface HistoryPoint { propensity: number; outcome: string | null; created_at: string; }
+
+const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
+  shadow:   { label: 'Shadow',   color: '#6366F1', bg: '#EEF2FF' },
+  live:     { label: 'Live',     color: '#059669', bg: '#D1FAE5' },
+  training: { label: 'Training', color: '#D97706', bg: '#FEF3C7' },
+  retired:  { label: 'Retired',  color: '#9CA3AF', bg: '#F3F4F6' },
+};
+
+// Simple SVG sparkline for propensity history
+function Sparkline({ points, width = 180, height = 40 }: { points: number[]; width?: number; height?: number }) {
+  if (points.length < 2) return <span style={{ fontSize: 11, color: '#9CA3AF' }}>Collecting data…</span>;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = max - min || 0.01;
+  const xs = points.map((_, i) => (i / (points.length - 1)) * width);
+  const ys = points.map(p => height - ((p - min) / range) * (height - 4) - 2);
+  const d = xs.map((x, i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
+  const last = points[points.length - 1];
+  const trend = points.length >= 5
+    ? points[points.length - 1] - points[points.length - 5]
+    : 0;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
+        <path d={d} fill="none" stroke="#6366F1" strokeWidth={1.5} strokeLinejoin="round" />
+        <circle cx={xs[xs.length - 1]} cy={ys[ys.length - 1]} r={3} fill="#6366F1" />
+      </svg>
+      <div style={{ fontSize: 12 }}>
+        <div style={{ fontWeight: 700, fontFamily: 'monospace' }}>{last.toFixed(3)}</div>
+        <div style={{ fontSize: 10, color: trend > 0 ? '#059669' : trend < 0 ? '#DC2626' : '#9CA3AF' }}>
+          {trend > 0 ? '▲' : trend < 0 ? '▼' : '─'} {Math.abs(trend).toFixed(3)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModelModal({
+  model, actions, onClose, onSaved,
+}: {
+  model: DBModel | null;
+  actions: Array<{ id: string; name: string; basePropensity: number }>;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName]         = useState(model?.name ?? '');
+  const [desc, setDesc]         = useState(model?.description ?? '');
+  const [actionId, setActionId] = useState(model?.action_id ?? '');
+  const [modelType, setModelType] = useState(model?.model_type ?? 'logistic_regression');
+  const [features, setFeatures] = useState<string[]>(model?.features ?? []);
+  const [customFeature, setCustomFeature] = useState('');
+  const [auc, setAuc]           = useState(model?.auc ?? 0.75);
+  const [lift, setLift]         = useState(model?.lift_at_decile1 ?? 2.0);
+  const [status, setStatus]     = useState(model?.status ?? 'shadow');
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState('');
+
+  const toggleFeature = (f: string) =>
+    setFeatures(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f]);
+
+  const addCustom = () => {
+    const f = customFeature.trim();
+    if (f && !features.includes(f)) { setFeatures(prev => [...prev, f]); setCustomFeature(''); }
+  };
+
+  const save = async () => {
+    if (!name.trim() || !actionId) { setError('Name and action are required'); return; }
+    setSaving(true); setError('');
+    const body = {
+      ...(model?.id ? { id: model.id } : {}),
+      name, description: desc, action_id: actionId, model_type: modelType,
+      features, auc, lift_at_decile1: lift, status, tenantId: TENANT_ID,
+    };
+    const r = await fetch('/api/models', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const j = await r.json();
+    setSaving(false);
+    if (!r.ok) { setError(j.error ?? 'Failed to save'); return; }
+    onSaved();
   };
 
   return (
-    <div className="animate-in">
-      <div className="page-header" style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
-        <div><h1 className="page-title">Adaptive Models</h1>
-          <p className="page-subtitle">Propensity models per action. Trained on acceptance/rejection feedback from the decision engine.</p></div>
-      </div>
-      <div style={{ padding:'0 24px 24px' }}>
-        {loadingModels ? (
-          <div className="card"><div className="empty-state"><div className="empty-state-body">Loading models…</div></div></div>
-        ) : models.length===0 ? (
-          <div className="card">
-            <div className="empty-state">
-              <div style={{ fontSize:32, marginBottom:8, opacity:0.2 }}>🧠</div>
-              <div className="empty-state-title">No models deployed</div>
-              <div className="empty-state-body">Adaptive models are trained automatically from decision feedback. Run the simulator and record outcomes to bootstrap training data.</div>
+    <div
+      onClick={e => e.target === e.currentTarget && onClose()}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex',
+        alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}
+    >
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12,
+        width: '100%', maxWidth: 640, maxHeight: '90vh', overflowY: 'auto',
+        boxShadow: '0 24px 60px rgba(0,0,0,0.18)' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Brain size={18} color="#6366F1" />
+            <span style={{ fontWeight: 600, fontSize: 16 }}>
+              {model ? 'Edit Model' : 'New Adaptive Model'}
+            </span>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {/* Name */}
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Model Name *
+            </label>
+            <input value={name} onChange={e => setName(e.target.value)}
+              placeholder="e.g. Credit Card Propensity v2"
+              style={{ width: '100%', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 7,
+                fontSize: 13, color: 'var(--text)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }} />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Description
+            </label>
+            <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={2}
+              placeholder="What customer behaviour does this model predict?"
+              style={{ width: '100%', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 7,
+                fontSize: 13, color: 'var(--text)', background: 'var(--bg)', outline: 'none',
+                resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+          </div>
+
+          {/* Action assignment */}
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Assigned to Action *
+            </label>
+            <select value={actionId} onChange={e => setActionId(e.target.value)}
+              style={{ width: '100%', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 7,
+                fontSize: 13, color: actionId ? 'var(--text)' : '#9CA3AF', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }}>
+              <option value="">Select an action…</option>
+              {actions.map(a => (
+                <option key={a.id} value={a.id}>{a.name} (propensity: {a.basePropensity.toFixed(3)})</option>
+              ))}
+            </select>
+            <p style={{ fontSize: 11, color: '#9CA3AF', margin: '5px 0 0' }}>
+              This model will update this action&apos;s propensity score as feedback arrives.
+            </p>
+          </div>
+
+          {/* Model type */}
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Algorithm
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {MODEL_TYPES.map(mt => (
+                <button key={mt.value} onClick={() => setModelType(mt.value)}
+                  style={{ padding: '10px 14px', border: `2px solid ${modelType === mt.value ? '#6366F1' : 'var(--border)'}`,
+                    borderRadius: 8, background: modelType === mt.value ? '#EEF2FF' : 'var(--card)',
+                    cursor: 'pointer', textAlign: 'left' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: modelType === mt.value ? '#6366F1' : 'var(--text)' }}>
+                    {mt.label}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{mt.desc}</div>
+                </button>
+              ))}
             </div>
           </div>
-        ) : (
-          <div className="card" style={{ padding:0, overflow:'hidden' }}>
-            <table className="table">
-              <thead><tr><th>Model</th><th>Action</th><th>Type</th><th>AUC</th><th>Lift D1</th><th>Predictions</th><th>Status</th></tr></thead>
-              <tbody>
-                {models.map(m => {
-                  const action = actions.find(a=>a.id===m.actionId);
-                  return (
-                    <tr key={m.id}>
-                      <td><div style={{ fontWeight:600 }}>{m.name}</div></td>
-                      <td style={{ fontSize:12, color:'var(--text-secondary)' }}>{action?.name??m.actionId}</td>
-                      <td><span className="badge badge-gray" style={{ textTransform:'capitalize' }}>{m.modelType.replace(/_/g,' ')}</span></td>
-                      <td style={{ fontWeight:700, fontFamily:'var(--font-mono)' }}>{m.auc.toFixed(3)}</td>
-                      <td style={{ fontWeight:700, color:'var(--success)', fontFamily:'var(--font-mono)' }}>{m.liftAtDecile1.toFixed(1)}x</td>
-                      <td style={{ fontSize:12, color:'var(--text-secondary)' }}>{m.predictionsToday.toLocaleString()}</td>
-                      <td><span className={STATUS_BADGE[m.status]+' badge'}>{m.status}</span></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+
+          {/* Features */}
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Input Features ({features.length} selected)
+            </label>
+            <p style={{ fontSize: 11, color: '#9CA3AF', margin: '0 0 10px' }}>
+              Select the customer attributes this model uses to predict propensity.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+              {STANDARD_FEATURES.map(f => (
+                <button key={f} onClick={() => toggleFeature(f)}
+                  style={{ padding: '4px 10px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+                    border: `1px solid ${features.includes(f) ? '#6366F1' : 'var(--border)'}`,
+                    background: features.includes(f) ? '#EEF2FF' : 'var(--card)',
+                    color: features.includes(f) ? '#6366F1' : 'var(--text-muted)',
+                    fontWeight: features.includes(f) ? 600 : 400 }}>
+                  {features.includes(f) ? '✓ ' : ''}{f}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input value={customFeature} onChange={e => setCustomFeature(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addCustom()}
+                placeholder="Add custom attribute…"
+                style={{ flex: 1, padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 6,
+                  fontSize: 12, color: 'var(--text)', background: 'var(--bg)', outline: 'none' }} />
+              <button onClick={addCustom}
+                style={{ padding: '7px 14px', background: 'none', border: '1px solid var(--border)',
+                  borderRadius: 6, fontSize: 12, cursor: 'pointer', color: 'var(--text-muted)' }}>
+                + Add
+              </button>
+            </div>
+            {features.filter(f => !STANDARD_FEATURES.includes(f)).map(f => (
+              <span key={f} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, margin: '6px 6px 0 0',
+                padding: '3px 10px', background: '#F3F4F6', borderRadius: 20, fontSize: 12 }}>
+                {f}
+                <button onClick={() => setFeatures(prev => prev.filter(x => x !== f))}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#9CA3AF', lineHeight: 1 }}>
+                  <X size={11} />
+                </button>
+              </span>
+            ))}
+          </div>
+
+          {/* Metrics + Status */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                AUC
+              </label>
+              <input type="number" value={auc} onChange={e => setAuc(Number(e.target.value))}
+                min={0} max={1} step={0.001}
+                style={{ width: '100%', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 7,
+                  fontSize: 13, color: 'var(--text)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Lift @ Decile 1
+              </label>
+              <input type="number" value={lift} onChange={e => setLift(Number(e.target.value))}
+                min={1} max={10} step={0.1}
+                style={{ width: '100%', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 7,
+                  fontSize: 13, color: 'var(--text)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Status
+              </label>
+              <select value={status} onChange={e => setStatus(e.target.value)}
+                style={{ width: '100%', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 7,
+                  fontSize: 13, color: 'var(--text)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }}>
+                <option value="shadow">Shadow (monitor only)</option>
+                <option value="training">Training</option>
+                <option value="live">Live (active updates)</option>
+                <option value="retired">Retired</option>
+              </select>
+            </div>
+          </div>
+
+          {/* How learning works — context for user */}
+          <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '12px 14px' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#166534', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Zap size={13} /> How this model learns
+            </div>
+            <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: '#166534', lineHeight: 1.7 }}>
+              <li>Every decision recorded via <code>/api/decide</code> logs propensity + outcome to the decision log</li>
+              <li>When an outcome is submitted (accepted / rejected / ignored), the action&apos;s propensity nudges ±5%</li>
+              <li><strong>Shadow</strong> mode: model observes and logs but does not affect live decisions</li>
+              <li><strong>Live</strong> mode: propensity scores influence arbitration in real-time</li>
+              <li>Promote to Live once AUC stabilises above 0.6 and lift exceeds 1.5×</li>
+            </ul>
+          </div>
+
+          {error && <div style={{ color: '#DC2626', fontSize: 13 }}>{error}</div>}
+        </div>
+
+        {/* Footer */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8,
+          padding: '16px 24px', borderTop: '1px solid var(--border)' }}>
+          <button onClick={onClose}
+            style={{ padding: '9px 18px', borderRadius: 7, border: '1px solid var(--border)',
+              background: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--text-muted)' }}>
+            Cancel
+          </button>
+          <button onClick={save} disabled={saving || !name.trim() || !actionId}
+            style={{ padding: '9px 20px', borderRadius: 7, border: 'none',
+              background: name.trim() && actionId ? '#6366F1' : '#9CA3AF',
+              cursor: name.trim() && actionId ? 'pointer' : 'not-allowed',
+              fontSize: 13, fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: 7 }}>
+            <Save size={13} /> {saving ? 'Saving…' : (model ? 'Update Model' : 'Create Model')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModelCard({
+  model, actions, onEdit, onDelete, onPromote,
+}: {
+  model: DBModel;
+  actions: Array<{ id: string; name: string }>;
+  onEdit: () => void;
+  onDelete: () => void;
+  onPromote: (status: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [history, setHistory]   = useState<HistoryPoint[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const action = actions.find(a => a.id === model.action_id);
+  const sm = STATUS_META[model.status] ?? STATUS_META.shadow;
+  const s  = model._stats;
+
+  const loadHistory = async () => {
+    if (history.length > 0) { setExpanded(e => !e); return; }
+    setLoadingHistory(true);
+    const r = await fetch(`/api/models?id=${model.id}&tenantId=${TENANT_ID}`);
+    const d = await r.json();
+    setHistory(d.history ?? []);
+    setLoadingHistory(false);
+    setExpanded(true);
+  };
+
+  const propensities = history.map(h => h.propensity).filter(Boolean) as number[];
+
+  return (
+    <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12,
+      overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+      {/* Top strip by status */}
+      <div style={{ height: 3, background: sm.color }} />
+
+      <div style={{ padding: '16px 20px' }}>
+        {/* Header row */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+              <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>{model.name}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20,
+                background: sm.bg, color: sm.color }}>
+                {sm.label}
+              </span>
+            </div>
+            {model.description && (
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
+                {model.description}
+              </p>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            <button onClick={onEdit}
+              style={{ padding: '5px 12px', fontSize: 12, border: '1px solid var(--border)',
+                borderRadius: 6, background: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+              Edit
+            </button>
+            <button onClick={onDelete}
+              style={{ padding: '5px 8px', border: '1px solid transparent', borderRadius: 6,
+                background: 'none', cursor: 'pointer', color: '#DC2626', display: 'flex', alignItems: 'center' }}>
+              <Trash2 size={13} />
+            </button>
+          </div>
+        </div>
+
+        {/* Metadata chips */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '12px 0' }}>
+          <span style={{ fontSize: 11, padding: '3px 9px', background: '#EEF2FF', color: '#6366F1', borderRadius: 20, fontWeight: 500 }}>
+            {MODEL_TYPES.find(m => m.value === model.model_type)?.label ?? model.model_type}
+          </span>
+          <span style={{ fontSize: 11, padding: '3px 9px', background: '#F3F4F6', color: '#374151', borderRadius: 20 }}>
+            Action: {action?.name ?? model.action_id}
+          </span>
+          {model.features.slice(0, 4).map(f => (
+            <span key={f} style={{ fontSize: 11, padding: '3px 9px', background: '#F9FAFB', color: '#6B7280', borderRadius: 20, border: '1px solid #E5E7EB' }}>
+              {f}
+            </span>
+          ))}
+          {model.features.length > 4 && (
+            <span style={{ fontSize: 11, padding: '3px 9px', color: '#9CA3AF' }}>+{model.features.length - 4} more</span>
+          )}
+        </div>
+
+        {/* Stats row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 1,
+          background: 'var(--border)', borderRadius: 8, overflow: 'hidden', marginBottom: 12 }}>
+          {[
+            { label: 'AUC',         value: model.auc.toFixed(3),                   mono: true },
+            { label: 'Lift D1',     value: model.lift_at_decile1.toFixed(1) + '×', mono: true, accent: true },
+            { label: 'Decisions',   value: (s?.totalDecisions ?? 0).toLocaleString() },
+            { label: 'Acceptance',  value: s ? (s.acceptanceRate * 100).toFixed(1) + '%' : '—' },
+            { label: 'Propensity',  value: s?.currentPropensity != null ? s.currentPropensity.toFixed(3) : model.auc.toFixed(3), mono: true },
+          ].map(({ label, value, mono, accent }) => (
+            <div key={label} style={{ background: 'var(--card)', padding: '8px 12px', textAlign: 'center' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>{label}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, fontFamily: mono ? 'monospace' : 'inherit',
+                color: accent ? '#059669' : 'var(--text)' }}>
+                {value}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Lifecycle controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {model.status === 'shadow' && (
+            <button onClick={() => onPromote('live')}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px',
+                border: '1px solid #6366F1', borderRadius: 6, background: 'none',
+                fontSize: 12, fontWeight: 500, cursor: 'pointer', color: '#6366F1' }}>
+              <Zap size={12} /> Promote to Live
+            </button>
+          )}
+          {model.status === 'live' && (
+            <button onClick={() => onPromote('shadow')}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px',
+                border: '1px solid var(--border)', borderRadius: 6, background: 'none',
+                fontSize: 12, cursor: 'pointer', color: 'var(--text-muted)' }}>
+              <Eye size={12} /> Move to Shadow
+            </button>
+          )}
+          {(model.status === 'live' || model.status === 'shadow') && (
+            <button onClick={() => onPromote('retired')}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px',
+                border: '1px solid var(--border)', borderRadius: 6, background: 'none',
+                fontSize: 12, cursor: 'pointer', color: '#9CA3AF' }}>
+              Retire
+            </button>
+          )}
+          {model.status === 'retired' && (
+            <button onClick={() => onPromote('shadow')}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px',
+                border: '1px solid var(--border)', borderRadius: 6, background: 'none',
+                fontSize: 12, cursor: 'pointer', color: 'var(--text-muted)' }}>
+              Reactivate
+            </button>
+          )}
+          <div style={{ flex: 1 }} />
+          <button onClick={loadHistory}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px',
+              border: '1px solid var(--border)', borderRadius: 6, background: 'none',
+              fontSize: 12, cursor: 'pointer', color: 'var(--text-muted)' }}>
+            <Activity size={12} />
+            {loadingHistory ? 'Loading…' : expanded ? 'Hide chart' : 'Propensity history'}
+            {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+        </div>
+
+        {/* Expanded history chart */}
+        {expanded && (
+          <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 12,
+              textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <TrendingUp size={13} /> Propensity over last {history.length} decisions
+            </div>
+            {propensities.length < 2 ? (
+              <div style={{ fontSize: 13, color: '#9CA3AF', padding: '20px 0', textAlign: 'center' }}>
+                Not enough decisions yet — submit feedback outcomes to see the learning curve.
+              </div>
+            ) : (
+              <>
+                <Sparkline points={propensities} width={560} height={60} />
+                <div style={{ display: 'flex', gap: 16, marginTop: 14, flexWrap: 'wrap' }}>
+                  {(['accepted','rejected','ignored'] as const).map(outcome => {
+                    const count = history.filter(h => h.outcome === outcome).length;
+                    const colors: Record<string, string> = { accepted:'#059669', rejected:'#DC2626', ignored:'#9CA3AF' };
+                    return (
+                      <div key={outcome} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: colors[outcome] }} />
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                          {outcome}: <strong>{count}</strong>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
+    </div>
+  );
+}
 
-      {/* Propensity Feedback */}
-      <div style={{ padding: '0 24px 24px' }}>
-        <div className="card" style={{ padding: 20 }}>
-          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Brain size={15} /> Adaptive Feedback — Manual Override
-          </div>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
-            Submit a decision outcome to update the action&apos;s propensity score using the Bayesian learning rate (±5%).
+export default function ModelsPage() {
+  const { actions } = useStore();
+  const [models, setModels]       = useState<DBModel[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing]     = useState<DBModel | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const r = await fetch(`/api/models?tenantId=${TENANT_ID}`);
+    const d = await r.json();
+    setModels(d.data ?? []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const openNew  = () => { setEditing(null);  setShowModal(true); };
+  const openEdit = (m: DBModel) => { setEditing(m); setShowModal(true); };
+  const onSaved  = () => { setShowModal(false); load(); };
+
+  const deleteModel = async (m: DBModel) => {
+    if (!confirm(`Delete model "${m.name}"? This cannot be undone.`)) return;
+    await fetch(`/api/models?id=${m.id}&tenantId=${TENANT_ID}`, { method: 'DELETE' });
+    load();
+  };
+
+  const promoteModel = async (m: DBModel, status: string) => {
+    await fetch('/api/models', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...m, action_id: m.action_id, status, tenantId: TENANT_ID }),
+    });
+    load();
+  };
+
+  const live    = models.filter(m => m.status === 'live');
+  const shadow  = models.filter(m => m.status === 'shadow');
+  const other   = models.filter(m => m.status !== 'live' && m.status !== 'shadow');
+
+  return (
+    <div style={{ padding: '32px 40px', maxWidth: 1200, margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32 }}>
+        <div>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Adaptive Models</h1>
+          <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '6px 0 0' }}>
+            Propensity models per action — learn continuously from decision outcomes
           </p>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <div style={{ flex: 2, minWidth: 200 }}>
-              <label className="form-label">Decision ID</label>
-              <input className="form-input" value={fbDecisionId} onChange={e => setFbDecisionId(e.target.value)} placeholder="UUID from /api/decide response" />
+        </div>
+        <button onClick={openNew}
+          style={{ display: 'flex', alignItems: 'center', gap: 7, background: '#6366F1', color: '#fff',
+            border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+          <Plus size={15} /> New Model
+        </button>
+      </div>
+
+      {/* How learning works — always visible banner */}
+      <div style={{ background: '#F0F0FF', border: '1px solid #C7D2FE', borderRadius: 10, padding: '14px 20px', marginBottom: 28 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#4338CA', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 7 }}>
+          <Zap size={14} /> How adaptive learning works in NexusCDH
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+          {[
+            { n: '1', title: 'Decision made', body: 'Customer is served an action via /api/decide. Propensity score recorded in decision_log.' },
+            { n: '2', title: 'Outcome captured', body: 'Accepted / Rejected / Ignored outcome submitted to /api/models/feedback.' },
+            { n: '3', title: 'Propensity updated', body: 'Bayesian nudge: accepted +5% toward 1.0, rejected -5% toward 0.0, ignored -1.5%.' },
+            { n: '4', title: 'Model improves', body: 'Next decision uses the updated propensity. Shadow models observe without changing live scores.' },
+          ].map(s => (
+            <div key={s.n} style={{ display: 'flex', gap: 10 }}>
+              <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#6366F1', color: '#fff',
+                fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {s.n}
+              </div>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#3730A3' }}>{s.title}</div>
+                <div style={{ fontSize: 11, color: '#6366F1', lineHeight: 1.5, marginTop: 2 }}>{s.body}</div>
+              </div>
             </div>
-            <div style={{ flex: 1, minWidth: 140 }}>
-              <label className="form-label">Outcome</label>
-              <select className="form-input" value={fbOutcome} onChange={e => setFbOutcome(e.target.value as typeof fbOutcome)}>
-                <option value="accepted">Accepted</option>
-                <option value="rejected">Rejected</option>
-                <option value="ignored">Ignored</option>
-              </select>
-            </div>
-            <button
-              className="btn btn-primary"
-              onClick={sendFeedback}
-              disabled={fbStatus === 'sending' || !fbDecisionId.trim()}
-            >
-              <Send size={13} /> {fbStatus === 'sending' ? 'Sending…' : 'Submit'}
-            </button>
-          </div>
-          {fbStatus === 'done' && (
-            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, color: '#16a34a', fontSize: 13 }}>
-              <CheckCircle size={14} /> {fbMsg}
-            </div>
-          )}
-          {fbStatus === 'error' && (
-            <div style={{ marginTop: 10, color: '#dc2626', fontSize: 13 }}>{fbMsg}</div>
-          )}
+          ))}
         </div>
       </div>
+
+      {loading && (
+        <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)', fontSize: 14 }}>
+          Loading models…
+        </div>
+      )}
+
+      {!loading && models.length === 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '80px 24px', border: '1px solid var(--border)', borderRadius: 12, background: 'var(--card)' }}>
+          <Brain size={56} color="#C7D2FE" style={{ marginBottom: 16 }} />
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', margin: '0 0 8px' }}>No models yet</h2>
+          <p style={{ fontSize: 14, color: 'var(--text-muted)', textAlign: 'center', maxWidth: 420, margin: '0 0 24px' }}>
+            Create an adaptive model for each action you want to optimise. Assign features, pick an algorithm, then promote to Live when ready.
+          </p>
+          <button onClick={openNew}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, background: '#6366F1', color: '#fff',
+              border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+            <Plus size={15} /> Create first model
+          </button>
+        </div>
+      )}
+
+      {!loading && models.length > 0 && (
+        <>
+          {live.length > 0 && (
+            <section style={{ marginBottom: 28 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#059669', textTransform: 'uppercase',
+                letterSpacing: '0.07em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#059669' }} />
+                Live ({live.length})
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(560px, 1fr))', gap: 16 }}>
+                {live.map(m => (
+                  <ModelCard key={m.id} model={m} actions={actions}
+                    onEdit={() => openEdit(m)}
+                    onDelete={() => deleteModel(m)}
+                    onPromote={s => promoteModel(m, s)} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {shadow.length > 0 && (
+            <section style={{ marginBottom: 28 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#6366F1', textTransform: 'uppercase',
+                letterSpacing: '0.07em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#6366F1' }} />
+                Shadow / Monitoring ({shadow.length})
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(560px, 1fr))', gap: 16 }}>
+                {shadow.map(m => (
+                  <ModelCard key={m.id} model={m} actions={actions}
+                    onEdit={() => openEdit(m)}
+                    onDelete={() => deleteModel(m)}
+                    onPromote={s => promoteModel(m, s)} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {other.length > 0 && (
+            <section>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase',
+                letterSpacing: '0.07em', marginBottom: 12 }}>
+                Training / Retired ({other.length})
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(560px, 1fr))', gap: 16 }}>
+                {other.map(m => (
+                  <ModelCard key={m.id} model={m} actions={actions}
+                    onEdit={() => openEdit(m)}
+                    onDelete={() => deleteModel(m)}
+                    onPromote={s => promoteModel(m, s)} />
+                ))}
+              </div>
+            </section>
+          )}
+        </>
+      )}
+
+      {showModal && (
+        <ModelModal model={editing} actions={actions} onClose={() => setShowModal(false)} onSaved={onSaved} />
+      )}
     </div>
   );
 }
