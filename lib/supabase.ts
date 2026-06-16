@@ -43,6 +43,12 @@ export interface DBStrategy {
   channel_ids: string[];
   audience_ids: string[];
   eligibility_rules?: Array<{ attribute: string; op: string; value: string }>;
+  // Engagement-policy layers (Pega CDH): eligibility (above) → applicability → suitability
+  applicability_rules?: Array<{ attribute: string; op: string; value: string }>;
+  suitability_rules?: Array<{ attribute: string; op: string; value: string }>;
+  // Arbitration: Priority = P × C × V × L
+  context_weight?: number;        // C — situational weight (default 1)
+  business_levers?: Array<{ id?: string; label: string; multiplier: number; condition?: { attribute: string; op: string; value: string } | null; enabled?: boolean }>;
   policy_id?: string;
   model_id?: string;
   arbitration: 'propensity' | 'value' | 'weighted' | 'random_ab';

@@ -18,6 +18,10 @@ import {
   IS_CONFIGURED,
   DBStrategy, DBAction, DBContactPolicy,
 } from '@/lib/supabase';
+import {
+  runEngagementPolicies, rankActions,
+  type RuleClause, type BusinessLever, type EngagementPolicyResult, type PriorityBreakdown,
+} from '@/lib/arbitration';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -33,6 +37,7 @@ interface PolicyResult {
   actionIds?: string[];
   maxPerDay?: number;
   maxPerWeek?: number;
+  engagementPolicy?: EngagementPolicyResult;
 }
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
@@ -125,31 +130,21 @@ function evaluateStrategy(
     return { outcome: 'NOT_APPLICABLE', reason: 'No active actions configured on this strategy' };
   }
 
-  // 7. Eligibility rules (FIX: previously stored but never evaluated)
-  if (strategy.eligibility_rules?.length) {
-    for (const rule of strategy.eligibility_rules) {
-      const carVal = car[rule.attribute];
-      const numVal = parseFloat(rule.value);
-      const carNum = typeof carVal === 'number' ? carVal : parseFloat(String(carVal));
-      let passes = false;
-      switch (rule.op) {
-        case '=':       passes = String(carVal) === rule.value; break;
-        case '!=':      passes = String(carVal) !== rule.value; break;
-        case '>=':      passes = !isNaN(carNum) && carNum >= numVal; break;
-        case '<=':      passes = !isNaN(carNum) && carNum <= numVal; break;
-        case '>':       passes = !isNaN(carNum) && carNum > numVal; break;
-        case '<':       passes = !isNaN(carNum) && carNum < numVal; break;
-        case 'IN':      passes = rule.value.split(',').map(v => v.trim()).includes(String(carVal)); break;
-        case 'NOT IN':  passes = !rule.value.split(',').map(v => v.trim()).includes(String(carVal)); break;
-        default:        passes = true;
-      }
-      if (!passes) {
-        return {
-          outcome: 'NOT_APPLICABLE',
-          reason: `Eligibility not met: ${rule.attribute} ${rule.op} ${rule.value}`,
-        };
-      }
-    }
+  // 7. Engagement policies — Eligibility → Applicability → Suitability (Pega CDH)
+  const engagementPolicy = runEngagementPolicies(car, {
+    eligibility_rules:   strategy.eligibility_rules as RuleClause[] | undefined,
+    applicability_rules: strategy.applicability_rules as RuleClause[] | undefined,
+    suitability_rules:   strategy.suitability_rules as RuleClause[] | undefined,
+  });
+
+  if (!engagementPolicy.passed) {
+    const failed = engagementPolicy.layers.find(l => !l.passed);
+    const r = failed?.failedRule;
+    return {
+      outcome: 'NOT_APPLICABLE',
+      reason: `${engagementPolicy.failedLayer} not met${r ? `: ${r.attribute} ${r.op} ${r.value}` : ''}`,
+      engagementPolicy,
+    };
   }
 
   return {
@@ -158,38 +153,47 @@ function evaluateStrategy(
     actionIds: eligibleActions.map(a => a.id),
     maxPerDay: maxDay,
     maxPerWeek: maxWeek,
+    engagementPolicy,
   };
 }
 
+interface ArbitrationOutcome {
+  winner: DBAction | null;
+  breakdown: PriorityBreakdown | null;
+  ranked: Array<{ action: DBAction; breakdown: PriorityBreakdown }>;
+}
+
+/**
+ * Arbitrate via Pega's Priority = P × C × V × L.
+ * `random_ab` overrides ranking with a random pick (for explicit A/B testing),
+ * but the full P×C×V×L breakdown is still computed for explainability.
+ */
 function arbitrate(
   result: PolicyResult,
   actions: DBAction[],
-  method: DBStrategy['arbitration'],
+  strategy: DBStrategy,
+  car: CAR,
   minPropensity = 0
-): DBAction | null {
-  if (result.outcome !== 'PASS' || !result.actionIds?.length) return null;
-
-  const eligible = actions.filter(
-    a => result.actionIds!.includes(a.id) && a.base_propensity >= minPropensity
-  );
-  if (!eligible.length) return null;
-
-  switch (method) {
-    case 'propensity':
-      return [...eligible].sort((a, b) => b.base_propensity - a.base_propensity)[0];
-    case 'value':
-      return [...eligible].sort((a, b) => (b.expected_value ?? 0) - (a.expected_value ?? 0))[0];
-    case 'weighted':
-      return [...eligible].sort((a, b) => {
-        const scoreA = a.base_propensity * 0.7 + ((a.expected_value ?? 0) / 1000) * 0.3;
-        const scoreB = b.base_propensity * 0.7 + ((b.expected_value ?? 0) / 1000) * 0.3;
-        return scoreB - scoreA;
-      })[0];
-    case 'random_ab':
-      return eligible[Math.floor(Math.random() * eligible.length)];
-    default:
-      return eligible[0];
+): ArbitrationOutcome {
+  if (result.outcome !== 'PASS' || !result.actionIds?.length) {
+    return { winner: null, breakdown: null, ranked: [] };
   }
+
+  const eligible = actions.filter(a => result.actionIds!.includes(a.id));
+  const { winner, ranked } = rankActions(eligible as DBAction[], car, {
+    contextWeight: strategy.context_weight ?? 1,
+    levers: (strategy.business_levers as BusinessLever[]) ?? [],
+    minPropensity,
+  });
+
+  if (!ranked.length) return { winner: null, breakdown: null, ranked: [] };
+
+  if (strategy.arbitration === 'random_ab') {
+    const pick = ranked[Math.floor(Math.random() * ranked.length)];
+    return { winner: pick.action, breakdown: pick.breakdown, ranked };
+  }
+
+  return { winner: winner?.action ?? null, breakdown: winner?.breakdown ?? null, ranked };
 }
 
 function translateSuppression(reason: string): { plain: string; category: string } {
@@ -273,19 +277,31 @@ export async function POST(req: NextRequest) {
 
   const policy    = strategy.policy_id ? policies.find(p => p.id === strategy.policy_id) ?? null : null;
   const result    = evaluateStrategy(strategy, policy, actions, car, contactCounts);
-  const bestAction = arbitrate(result, actions, strategy.arbitration, minPropensity);
+  const arb        = arbitrate(result, actions, strategy, car, minPropensity);
+  const bestAction = arb.winner;
 
   const served            = result.outcome === 'PASS' && bestAction !== null;
   const suppressionReason = served ? undefined : result.reason;
   const translation       = suppressionReason ? translateSuppression(suppressionReason) : null;
 
+  const ep = result.engagementPolicy;
+  const layerOutcome = (layer: 'eligibility' | 'applicability' | 'suitability') => {
+    const l = ep?.layers.find(x => x.layer === layer);
+    if (!l) return 'PASS';
+    return l.passed ? 'PASS' : 'NOT_APPLICABLE';
+  };
+
   const trace = [
     { step: 'consent',          outcome: car.consentGiven ? 'PASS' : 'SUPPRESSED' },
     { step: 'strategy_status',  outcome: strategy.status === 'active' ? 'PASS' : 'NOT_APPLICABLE' },
+    { step: 'eligibility',      outcome: layerOutcome('eligibility') },
+    { step: 'applicability',    outcome: layerOutcome('applicability') },
+    { step: 'suitability',      outcome: layerOutcome('suitability') },
     { step: 'contact_limits',   outcome: result.outcome === 'SUPPRESSED' && /limit/i.test(result.reason) ? 'SUPPRESSED' : 'PASS' },
-    { step: 'eligibility',      outcome: result.outcome === 'NOT_APPLICABLE' && /eligibility/i.test(result.reason) ? 'NOT_APPLICABLE' : 'PASS' },
     { step: 'suppression',      outcome: result.outcome === 'SUPPRESSED' && /rule/i.test(result.reason) ? 'SUPPRESSED' : 'PASS' },
-    { step: 'arbitration',      outcome: served ? `Selected: ${bestAction?.name}` : 'N/A' },
+    { step: 'arbitration',      outcome: served && arb.breakdown
+        ? `Selected: ${bestAction?.name} (P×C×V×L = ${arb.breakdown.priority.toFixed(1)})`
+        : 'N/A' },
   ];
 
   const latencyMs = Date.now() - start;
@@ -327,6 +343,17 @@ export async function POST(req: NextRequest) {
       channel:    bestAction!.channels[0],
       propensity: bestAction!.base_propensity,
     } : undefined,
+    // Pega-style explainability: P×C×V×L for the winner + the full ranked set
+    arbitration: arb.breakdown ? {
+      formula:  'Priority = P × C × V × L',
+      winner:   arb.breakdown,
+      ranked:   arb.ranked.map(r => ({
+        actionId:   r.action.id,
+        actionName: r.action.name,
+        ...r.breakdown,
+      })),
+    } : undefined,
+    engagementPolicy: result.engagementPolicy,
     suppressionReason,
     suppressionExplanation: translation ? {
       plain:     translation.plain,
@@ -393,6 +420,8 @@ export async function GET(req: NextRequest) {
     strategy: DBStrategy;
     action: DBAction;
     propensity: number;
+    priority: number;
+    breakdown: PriorityBreakdown;
   }> = [];
 
   let suppressedCount = 0;
@@ -402,11 +431,16 @@ export async function GET(req: NextRequest) {
     const policy = strategy.policy_id
       ? policies.find(p => p.id === strategy.policy_id) ?? null
       : null;
-    const result     = evaluateStrategy(strategy, policy, actions, car, contactCounts);
-    const bestAction = arbitrate(result, actions, strategy.arbitration, minPropensity);
+    const result = evaluateStrategy(strategy, policy, actions, car, contactCounts);
+    const arb    = arbitrate(result, actions, strategy, car, minPropensity);
 
-    if (result.outcome === 'PASS' && bestAction) {
-      candidates.push({ strategy, action: bestAction, propensity: bestAction.base_propensity });
+    if (result.outcome === 'PASS' && arb.winner && arb.breakdown) {
+      candidates.push({
+        strategy, action: arb.winner,
+        propensity: arb.winner.base_propensity,
+        priority: arb.breakdown.priority,
+        breakdown: arb.breakdown,
+      });
     } else if (result.outcome === 'SUPPRESSED') {
       suppressedCount++;
     } else {
@@ -414,8 +448,8 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Global arbitration: highest propensity across all qualifying strategies
-  candidates.sort((a, b) => b.propensity - a.propensity);
+  // Global arbitration: highest P×C×V×L priority across all qualifying strategies
+  candidates.sort((a, b) => b.priority - a.priority);
   const winner = candidates[0] ?? null;
 
   // Persist profile + decision log
@@ -434,7 +468,7 @@ export async function GET(req: NextRequest) {
       served:              true,
       propensity:          winner.action.base_propensity,
       customer_attributes: mergedAttrs as Record<string, unknown>,
-      trace:               [{ step: 'global-nba', strategiesEvaluated: activeStrategies.length, candidatesFound: candidates.length }],
+      trace:               [{ step: 'global-nba', strategiesEvaluated: activeStrategies.length, candidatesFound: candidates.length, priority: winner.priority, breakdown: winner.breakdown }],
       decision_latency_ms: Date.now() - start,
     }, tenantId);
 
@@ -453,6 +487,13 @@ export async function GET(req: NextRequest) {
       offerCode:  winner.action.offer_code,
       channel:    winner.action.channels[0],
       propensity: winner.action.base_propensity,
+    } : undefined,
+    arbitration: winner ? {
+      formula: 'Priority = P × C × V × L',
+      winner:  winner.breakdown,
+      ranked:  candidates.slice(0, 10).map(c => ({
+        actionId: c.action.id, actionName: c.action.name, strategyName: c.strategy.name, ...c.breakdown,
+      })),
     } : undefined,
     strategyId:           winner?.strategy.id,
     strategyName:         winner?.strategy.name,

@@ -7,7 +7,7 @@ import { useEffect } from 'react';
 import { useAuth, usePermission, ROLE_LABELS } from '@/lib/auth';
 import HydrateStore from '@/components/HydrateStore';
 import {
-  LayoutDashboard, Layers, GitBranch, Radio, Shield,
+  LayoutDashboard, Layers, GitBranch, Radio, Shield, Scale,
   Users, Brain, Cpu, Activity, Settings, LogOut,
   ChevronRight, UserCheck, Zap, Sparkles,
   UserSearch, FlaskConical, BarChart3, Key, ScrollText, Wand2,
@@ -23,6 +23,7 @@ const NAV_SECTIONS = [
       { href: '/treatments', label: 'Treatments & Bundles', icon: Package,  permission: 'taxonomy:read' },
       { href: '/journeys',   label: 'Customer Journeys',    icon: Route,    permission: 'strategies:read' },
       { href: '/strategies', label: 'Strategies',           icon: GitBranch,permission: 'strategies:read' },
+      { href: '/arbitration',label: 'Arbitration',          icon: Scale,    permission: 'strategies:read' },
       { href: '/channels',  label: 'Channels',       icon: Radio,           permission: 'channels:read' },
       { href: '/policies',  label: 'Engagement Policies', icon: Shield,     permission: 'policies:read' },
     ],
