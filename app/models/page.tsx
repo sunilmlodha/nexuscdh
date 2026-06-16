@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useStore } from '@/lib/store';
-import { Brain, Plus, ChevronDown, ChevronUp, Trash2, X, Save, Activity, TrendingUp, Zap, Eye, FlaskConical, Info } from 'lucide-react';
+import { Brain, Plus, ChevronDown, ChevronUp, Trash2, X, Save, Activity, TrendingUp, Zap, Eye, FlaskConical, Info, Cloud, CheckCircle2, AlertCircle, ExternalLink } from 'lucide-react';
 
 const TENANT_ID = 'f0000000-0000-4000-a000-000000000001';
 
@@ -745,12 +745,506 @@ function ModelCard({
   );
 }
 
+// ── External Provider Definitions ─────────────────────────────────────────────
+
+const PROVIDERS = [
+  {
+    value: 'vertex_ai', label: 'Google Vertex AI',
+    logo: '🟢', color: '#1a73e8',
+    desc: 'Managed ML platform on Google Cloud. Supports AutoML and custom training.',
+    docsUrl: 'https://cloud.google.com/vertex-ai/docs/predictions/get-online-predictions',
+    fields: ['endpoint_url', 'api_key', 'project_id', 'region'],
+    payloadHint: '{"instances": [{...features}]} → predictions[0]',
+  },
+  {
+    value: 'sagemaker', label: 'AWS SageMaker',
+    logo: '🟠', color: '#FF9900',
+    desc: 'Amazon SageMaker real-time inference endpoints. Sign requests with AWS credentials.',
+    docsUrl: 'https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deployment.html',
+    fields: ['endpoint_url', 'api_key', 'region', 'model_id'],
+    payloadHint: '{...features} → predictions[0]',
+  },
+  {
+    value: 'h2o', label: 'H2O.ai',
+    logo: '💧', color: '#FFD700',
+    desc: 'H2O-3 / MOJO scoring server. REST scoring endpoint for deployed models.',
+    docsUrl: 'https://docs.h2o.ai/h2o/latest-stable/h2o-docs/productionizing.html',
+    fields: ['endpoint_url', 'api_key', 'model_id'],
+    payloadHint: '{...features} → score',
+  },
+  {
+    value: 'azure_ml', label: 'Azure ML',
+    logo: '🔵', color: '#0078D4',
+    desc: 'Azure Machine Learning real-time endpoints. Managed online endpoints.',
+    docsUrl: 'https://learn.microsoft.com/en-us/azure/machine-learning/concept-endpoints',
+    fields: ['endpoint_url', 'api_key', 'project_id', 'model_id'],
+    payloadHint: '{"data": [[...values]]} → result[0]',
+  },
+  {
+    value: 'databricks', label: 'Databricks MLflow',
+    logo: '🧱', color: '#FF3621',
+    desc: 'MLflow Model Serving on Databricks. Deploy registered models as REST endpoints.',
+    docsUrl: 'https://docs.databricks.com/en/machine-learning/model-serving/index.html',
+    fields: ['endpoint_url', 'api_key', 'model_id'],
+    payloadHint: '{"inputs": [{...features}]} → predictions[0]',
+  },
+  {
+    value: 'custom', label: 'Custom HTTP',
+    logo: '⚡', color: '#6366F1',
+    desc: 'Any REST scoring endpoint. Configure payload mapping and response field extraction.',
+    docsUrl: '',
+    fields: ['endpoint_url', 'api_key', 'model_id', 'output_field'],
+    payloadHint: '{...features} → output_field',
+  },
+];
+
+const FIELD_LABELS: Record<string, { label: string; placeholder: string; secret?: boolean }> = {
+  endpoint_url: { label: 'Scoring Endpoint URL', placeholder: 'https://…/predict' },
+  api_key:      { label: 'API Key / Token', placeholder: 'sk-…', secret: true },
+  model_id:     { label: 'Model ID / ARN / Name', placeholder: 'projects/…/models/…' },
+  region:       { label: 'Region', placeholder: 'us-central1 / us-east-1' },
+  project_id:   { label: 'Project / Subscription ID', placeholder: 'my-gcp-project' },
+  output_field: { label: 'Score Field Name', placeholder: 'score' },
+};
+
+interface ExternalModelConfig {
+  id?: string;
+  tenant_id?: string;
+  name: string;
+  description: string;
+  provider: string;
+  endpoint_url: string;
+  api_key: string;
+  model_id: string;
+  region: string;
+  project_id: string;
+  output_field: string;
+  feature_map: Record<string, string>;
+  status: string;
+  action_id?: string | null;
+  last_tested_at?: string;
+  last_test_result?: { success: boolean; score?: number; latencyMs?: number; error?: string } | null;
+}
+
+function ExternalModelModal({
+  config, onClose, onSaved,
+}: {
+  config: ExternalModelConfig | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const provider = PROVIDERS.find(p => p.value === (config?.provider ?? ''));
+  const [selectedProvider, setSelectedProvider] = useState(config?.provider ?? '');
+  const [name, setName]               = useState(config?.name ?? '');
+  const [desc, setDesc]               = useState(config?.description ?? '');
+  const [endpointUrl, setEndpointUrl] = useState(config?.endpoint_url ?? '');
+  const [apiKey, setApiKey]           = useState(config?.api_key ?? '');
+  const [modelId, setModelId]         = useState(config?.model_id ?? '');
+  const [region, setRegion]           = useState(config?.region ?? '');
+  const [projectId, setProjectId]     = useState(config?.project_id ?? '');
+  const [outputField, setOutputField] = useState(config?.output_field ?? 'score');
+  const [status, setStatus]           = useState(config?.status ?? 'inactive');
+  const [saving, setSaving]           = useState(false);
+  const [testing, setTesting]         = useState(false);
+  const [testResult, setTestResult]   = useState<{ success: boolean; score?: number; latencyMs?: number; error?: string } | null>(
+    config?.last_test_result ?? null
+  );
+  const [error, setError] = useState('');
+
+  const activeProvider = PROVIDERS.find(p => p.value === selectedProvider);
+
+  const buildBody = () => ({
+    ...(config?.id ? { id: config.id } : {}),
+    name, description: desc,
+    provider: selectedProvider,
+    endpoint_url: endpointUrl,
+    api_key: apiKey,
+    model_id: modelId,
+    region, project_id: projectId,
+    output_field: outputField,
+    status,
+    feature_map: {},
+    tenantId: TENANT_ID,
+  });
+
+  const save = async () => {
+    if (!name.trim() || !selectedProvider) { setError('Name and provider are required'); return; }
+    setSaving(true); setError('');
+    const res = await fetch('/api/models/external', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildBody()),
+    });
+    setSaving(false);
+    if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Save failed'); return; }
+    onSaved();
+  };
+
+  const testConnection = async () => {
+    setTesting(true); setError(''); setTestResult(null);
+    const res = await fetch('/api/models/external?test=true', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildBody()),
+    });
+    const d = await res.json();
+    setTestResult(d);
+    setTesting(false);
+  };
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{
+        background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 14,
+        padding: 28, width: 560, maxWidth: '92vw', maxHeight: '88vh', overflowY: 'auto',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
+            {config?.id ? 'Edit External Model' : 'Import External Model'}
+          </h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {error && (
+          <div style={{ background: '#fee2e2', color: '#b91c1c', borderRadius: 8, padding: '8px 14px', marginBottom: 14, fontSize: 13 }}>
+            {error}
+          </div>
+        )}
+
+        {/* Provider picker — shown only when creating */}
+        {!config?.id && (
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+              Provider *
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+              {PROVIDERS.map(p => (
+                <button key={p.value} onClick={() => setSelectedProvider(p.value)}
+                  style={{
+                    padding: '10px 12px', borderRadius: 8, border: `2px solid ${selectedProvider === p.value ? p.color : 'var(--border)'}`,
+                    background: selectedProvider === p.value ? `${p.color}11` : 'var(--bg)',
+                    cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s',
+                  }}>
+                  <div style={{ fontSize: 16, marginBottom: 2 }}>{p.logo}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)' }}>{p.label}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeProvider && (
+          <div style={{
+            background: `${activeProvider.color}08`, border: `1px solid ${activeProvider.color}33`,
+            borderRadius: 8, padding: '10px 14px', marginBottom: 18, fontSize: 12, color: 'var(--text-muted)',
+            display: 'flex', gap: 10, alignItems: 'flex-start',
+          }}>
+            <span style={{ fontSize: 18 }}>{activeProvider.logo}</span>
+            <div>
+              <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{activeProvider.label}</div>
+              <div>{activeProvider.desc}</div>
+              <div style={{ marginTop: 4, fontFamily: 'monospace', fontSize: 11, color: activeProvider.color }}>
+                Payload: {activeProvider.payloadHint}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Name */}
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Name *</label>
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Vertex AI Propensity Model v2"
+            style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+        </div>
+
+        {/* Description */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Description</label>
+          <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Optional description"
+            style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+        </div>
+
+        {/* Dynamic fields per provider */}
+        {activeProvider && activeProvider.fields.map(fieldKey => {
+          const f = FIELD_LABELS[fieldKey];
+          if (!f) return null;
+          const vals: Record<string, string> = { endpoint_url: endpointUrl, api_key: apiKey, model_id: modelId, region, project_id: projectId, output_field: outputField };
+          const setters: Record<string, (v: string) => void> = { endpoint_url: setEndpointUrl, api_key: setApiKey, model_id: setModelId, region: setRegion, project_id: setProjectId, output_field: setOutputField };
+          return (
+            <div key={fieldKey} style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{f.label}</label>
+              <input
+                type={f.secret ? 'password' : 'text'}
+                value={vals[fieldKey]}
+                onChange={e => setters[fieldKey](e.target.value)}
+                placeholder={f.placeholder}
+                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: f.secret ? 'monospace' : 'inherit' }}
+              />
+            </div>
+          );
+        })}
+
+        {/* Status */}
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Status</label>
+          <select value={status} onChange={e => setStatus(e.target.value)}
+            style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 13, outline: 'none', width: '100%' }}>
+            <option value="inactive">Inactive — configured but not scoring</option>
+            <option value="testing">Testing — validate connection only</option>
+            <option value="active">Active — use for live scoring</option>
+          </select>
+        </div>
+
+        {/* Test result */}
+        {testResult && (
+          <div style={{
+            marginBottom: 16, padding: '10px 14px', borderRadius: 8,
+            background: testResult.success ? '#dcfce7' : '#fee2e2',
+            border: `1px solid ${testResult.success ? '#86efac' : '#fca5a5'}`,
+            fontSize: 13,
+          }}>
+            {testResult.success ? (
+              <div style={{ color: '#15803d' }}>
+                <strong>Connection successful</strong>{' '}
+                {testResult.score !== undefined && `— score: ${testResult.score.toFixed(4)}`}{' '}
+                {testResult.latencyMs !== undefined && `(${testResult.latencyMs}ms)`}
+              </div>
+            ) : (
+              <div style={{ color: '#b91c1c' }}>
+                <strong>Test failed:</strong> {testResult.error}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center' }}>
+          <button onClick={testConnection} disabled={testing || !endpointUrl.trim()}
+            style={{
+              padding: '9px 18px', borderRadius: 8,
+              background: 'var(--bg)', color: 'var(--text-primary)',
+              border: '1px solid var(--border)', cursor: testing || !endpointUrl.trim() ? 'not-allowed' : 'pointer',
+              fontSize: 13, fontWeight: 500, opacity: testing || !endpointUrl.trim() ? 0.6 : 1,
+            }}>
+            {testing ? 'Testing…' : 'Test Connection'}
+          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={onClose}
+              style={{ padding: '9px 18px', borderRadius: 8, background: 'var(--bg)', color: 'var(--text-muted)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: 13 }}>
+              Cancel
+            </button>
+            <button onClick={save} disabled={saving}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 20px', borderRadius: 8, background: '#6366F1', color: '#fff', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, opacity: saving ? 0.7 : 1 }}>
+              <Save size={14} /> {saving ? 'Saving…' : config?.id ? 'Update' : 'Save'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExternalModelsTab({ actions }: { actions: Array<{ id: string; name: string; basePropensity: number }> }) {
+  const [configs, setConfigs]       = useState<ExternalModelConfig[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [showModal, setShowModal]   = useState(false);
+  const [editing, setEditing]       = useState<ExternalModelConfig | null>(null);
+  const [configured, setConfigured] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(`/api/models/external?tenantId=${TENANT_ID}`);
+      const d = await r.json();
+      setConfigured(d.configured !== false);
+      setConfigs(d.data ?? []);
+    } catch {
+      setConfigs([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const onSaved = () => { setShowModal(false); load(); };
+
+  const deleteConfig = async (cfg: ExternalModelConfig) => {
+    if (!cfg.id || !confirm(`Delete "${cfg.name}"?`)) return;
+    await fetch(`/api/models/external?id=${cfg.id}&tenantId=${TENANT_ID}`, { method: 'DELETE' });
+    load();
+  };
+
+  const openEdit = (cfg: ExternalModelConfig) => { setEditing(cfg); setShowModal(true); };
+  const openNew  = () => { setEditing(null); setShowModal(true); };
+
+  if (loading) return <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)', fontSize: 14 }}>Loading…</div>;
+
+  if (!configured) return (
+    <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10, padding: '16px 20px', fontSize: 13, color: '#78350f' }}>
+      Supabase not configured — run <code>schema_v6.sql</code> and set environment variables to use external model imports.
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>External Model Integrations</h2>
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>
+            Connect cloud-hosted models from Google, AWS, H2O, Azure, and Databricks for real-time propensity scoring
+          </p>
+        </div>
+        <button onClick={openNew}
+          style={{ display: 'flex', alignItems: 'center', gap: 7, background: '#6366F1', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+          <Plus size={15} /> Import Model
+        </button>
+      </div>
+
+      {/* Provider overview chips */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 28 }}>
+        {PROVIDERS.map(p => {
+          const count = configs.filter(c => c.provider === p.value).length;
+          return (
+            <div key={p.value} style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '7px 14px', borderRadius: 999,
+              background: count > 0 ? `${p.color}11` : 'var(--bg-panel)',
+              border: `1px solid ${count > 0 ? p.color + '44' : 'var(--border)'}`,
+              fontSize: 12, fontWeight: count > 0 ? 600 : 400,
+              color: count > 0 ? p.color : 'var(--text-muted)',
+            }}>
+              <span>{p.logo}</span>
+              <span>{p.label}</span>
+              {count > 0 && <span style={{ background: p.color, color: '#fff', borderRadius: 999, fontSize: 10, fontWeight: 700, padding: '1px 6px' }}>{count}</span>}
+            </div>
+          );
+        })}
+      </div>
+
+      {configs.length === 0 ? (
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '80px 24px', border: '1px solid var(--border)', borderRadius: 12, background: 'var(--bg-panel)',
+          textAlign: 'center',
+        }}>
+          <Cloud size={52} color="#C7D2FE" style={{ marginBottom: 16 }} />
+          <h3 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 8px' }}>No external models connected</h3>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 440, margin: '0 0 24px' }}>
+            Import scoring models from Google Vertex AI, AWS SageMaker, H2O.ai, Azure ML, or Databricks MLflow.
+            Configure the endpoint URL and credentials to start using external propensity scores.
+          </p>
+          <button onClick={openNew}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, background: '#6366F1', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+            <Plus size={15} /> Import first model
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(460px, 1fr))', gap: 16 }}>
+          {configs.map(cfg => {
+            const prov = PROVIDERS.find(p => p.value === cfg.provider);
+            const statusColors: Record<string, { bg: string; color: string }> = {
+              active:   { bg: '#D1FAE5', color: '#059669' },
+              testing:  { bg: '#FEF3C7', color: '#D97706' },
+              inactive: { bg: '#F3F4F6', color: '#6B7280' },
+            };
+            const sc = statusColors[cfg.status] ?? statusColors.inactive;
+            return (
+              <div key={cfg.id} style={{
+                background: 'var(--bg-panel)', border: '1px solid var(--border)',
+                borderRadius: 12, padding: 20,
+                borderLeft: `4px solid ${prov?.color ?? '#6366F1'}`,
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <span style={{ fontSize: 20 }}>{prov?.logo ?? '🔌'}</span>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)' }}>{cfg.name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{prov?.label ?? cfg.provider}</div>
+                    </div>
+                  </div>
+                  <span style={{ background: sc.bg, color: sc.color, borderRadius: 999, padding: '3px 10px', fontSize: 11, fontWeight: 600 }}>
+                    {cfg.status.charAt(0).toUpperCase() + cfg.status.slice(1)}
+                  </span>
+                </div>
+
+                {cfg.description && (
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 12px' }}>{cfg.description}</p>
+                )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+                  {cfg.endpoint_url && (
+                    <div style={{ background: 'var(--bg)', borderRadius: 6, padding: '6px 10px' }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 2 }}>Endpoint</div>
+                      <div style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {cfg.endpoint_url.replace(/^https?:\/\//, '')}
+                      </div>
+                    </div>
+                  )}
+                  {cfg.model_id && (
+                    <div style={{ background: 'var(--bg)', borderRadius: 6, padding: '6px 10px' }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 2 }}>Model ID</div>
+                      <div style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {cfg.model_id}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {cfg.last_test_result && (
+                  <div style={{
+                    padding: '7px 10px', borderRadius: 7, marginBottom: 12, fontSize: 12,
+                    background: cfg.last_test_result.success ? '#dcfce7' : '#fee2e2',
+                    color: cfg.last_test_result.success ? '#15803d' : '#b91c1c',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}>
+                    {cfg.last_test_result.success
+                      ? <><CheckCircle2 size={13} /> Last test: score {cfg.last_test_result.score?.toFixed(4) ?? '—'} ({cfg.last_test_result.latencyMs}ms)</>
+                      : <><AlertCircle size={13} /> {cfg.last_test_result.error}</>
+                    }
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => openEdit(cfg)}
+                    style={{ flex: 1, padding: '7px 0', borderRadius: 7, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer', fontSize: 12, fontWeight: 500 }}>
+                    Configure
+                  </button>
+                  {prov?.docsUrl && (
+                    <a href={prov.docsUrl} target="_blank" rel="noopener noreferrer"
+                      style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '7px 10px', borderRadius: 7, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12, textDecoration: 'none' }}>
+                      <ExternalLink size={12} /> Docs
+                    </a>
+                  )}
+                  <button onClick={() => deleteConfig(cfg)}
+                    style={{ padding: '7px 10px', borderRadius: 7, background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5', cursor: 'pointer', fontSize: 12 }}>
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showModal && (
+        <ExternalModelModal config={editing} onClose={() => setShowModal(false)} onSaved={onSaved} />
+      )}
+    </div>
+  );
+}
+
 export default function ModelsPage() {
   const { actions } = useStore();
   const [models, setModels]       = useState<DBModel[]>([]);
   const [loading, setLoading]     = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing]     = useState<DBModel | null>(null);
+  const [activeTab, setActiveTab] = useState<'native' | 'external'>('native');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -787,20 +1281,48 @@ export default function ModelsPage() {
   return (
     <div style={{ padding: '32px 40px', maxWidth: 1200, margin: '0 auto' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Adaptive Models</h1>
           <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '6px 0 0' }}>
             Propensity models per action — learn continuously from decision outcomes
           </p>
         </div>
-        <button onClick={openNew}
-          style={{ display: 'flex', alignItems: 'center', gap: 7, background: '#6366F1', color: '#fff',
-            border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
-          <Plus size={15} /> New Model
-        </button>
+        {activeTab === 'native' && (
+          <button onClick={openNew}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, background: '#6366F1', color: '#fff',
+              border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+            <Plus size={15} /> New Model
+          </button>
+        )}
       </div>
 
+      {/* Tab bar */}
+      <div style={{ display: 'flex', gap: 2, marginBottom: 28, borderBottom: '2px solid var(--border)', paddingBottom: 0 }}>
+        {[
+          { key: 'native', label: 'Native Models', icon: <Brain size={14} /> },
+          { key: 'external', label: 'External Integrations', icon: <Cloud size={14} /> },
+        ].map(tab => (
+          <button key={tab.key} onClick={() => setActiveTab(tab.key as 'native' | 'external')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '10px 18px', borderRadius: '8px 8px 0 0',
+              background: activeTab === tab.key ? 'var(--bg-panel)' : 'transparent',
+              border: activeTab === tab.key ? '2px solid var(--border)' : '2px solid transparent',
+              borderBottom: activeTab === tab.key ? '2px solid var(--bg-panel)' : '2px solid transparent',
+              marginBottom: activeTab === tab.key ? '-2px' : 0,
+              color: activeTab === tab.key ? 'var(--text-primary)' : 'var(--text-muted)',
+              fontWeight: activeTab === tab.key ? 600 : 400,
+              fontSize: 13, cursor: 'pointer',
+            }}>
+            {tab.icon} {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'external' && <ExternalModelsTab actions={actions} />}
+
+      {activeTab === 'native' && <>
       {/* How learning works — always visible banner */}
       <div style={{ background: '#F0F0FF', border: '1px solid #C7D2FE', borderRadius: 10, padding: '14px 20px', marginBottom: 28 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#4338CA', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 7 }}>
@@ -909,6 +1431,7 @@ export default function ModelsPage() {
       {showModal && (
         <ModelModal model={editing} actions={actions} onClose={() => setShowModal(false)} onSaved={onSaved} />
       )}
+      </>}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Users, Search, List, CheckCircle, XCircle, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { Users, Search, List, CheckCircle, XCircle, ChevronRight, Plus, Trash2, AlertTriangle, UserPlus } from 'lucide-react';
 
 interface CustomerProfile {
   id: string;
@@ -21,6 +21,14 @@ interface DecisionRow {
   outcome?: string;
   created_at: string;
 }
+
+const SAMPLE_PROFILES = [
+  { customer_id: 'CUST-001', attributes: { age: 34, income_band: 'high', product_interest: 'mortgage', risk_score: 0.12, channel_preference: 'mobile' } },
+  { customer_id: 'CUST-002', attributes: { age: 52, income_band: 'medium', product_interest: 'savings', risk_score: 0.45, channel_preference: 'email' } },
+  { customer_id: 'CUST-003', attributes: { age: 28, income_band: 'low', product_interest: 'credit_card', risk_score: 0.67, channel_preference: 'web' } },
+  { customer_id: 'CUST-004', attributes: { age: 41, income_band: 'high', product_interest: 'investment', risk_score: 0.08, channel_preference: 'branch' } },
+  { customer_id: 'CUST-005', attributes: { age: 63, income_band: 'medium', product_interest: 'insurance', risk_score: 0.22, channel_preference: 'email' } },
+];
 
 function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr);
@@ -42,11 +50,8 @@ function formatRelativeTime(dateStr: string): string {
 function formatDate(dateStr?: string): string {
   if (!dateStr) return 'Never';
   return new Date(dateStr).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
   });
 }
 
@@ -63,6 +68,15 @@ export default function ProfilesPage() {
   const [addingAttr, setAddingAttr] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [configured, setConfigured] = useState<boolean | null>(null);
+  const [seedLoading, setSeedLoading] = useState(false);
+  const [seedDone, setSeedDone] = useState(false);
+
+  // Create Profile modal state
+  const [showCreate, setShowCreate] = useState(false);
+  const [createId, setCreateId] = useState('');
+  const [createAttrs, setCreateAttrs] = useState<Record<string, string>>({ age: '', income_band: '', product_interest: '', channel_preference: '' });
+  const [createLoading, setCreateLoading] = useState(false);
 
   const lookupProfile = useCallback(async (customerId: string) => {
     if (!customerId.trim()) return;
@@ -73,6 +87,8 @@ export default function ProfilesPage() {
       const res = await fetch(`/api/profile?customerId=${encodeURIComponent(customerId)}&tenantId=f0000000-0000-4000-a000-000000000001`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load profile');
+      if (data.configured === false) { setConfigured(false); return; }
+      setConfigured(true);
       setProfile(data.profile);
       setDecisions(data.decisions || []);
       setEditAttrs(data.profile?.attributes || {});
@@ -95,6 +111,8 @@ export default function ProfilesPage() {
       const res = await fetch('/api/profile?list=true&tenantId=f0000000-0000-4000-a000-000000000001');
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load profiles');
+      if (data.configured === false) { setConfigured(false); return; }
+      setConfigured(true);
       setAllProfiles(data.profiles || []);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Unknown error');
@@ -144,6 +162,7 @@ export default function ProfilesPage() {
       setDecisions([]);
       setEditAttrs({});
       setSearchId('');
+      setAllProfiles((prev) => prev.filter((p) => p.customer_id !== profile.customer_id));
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Delete failed');
     }
@@ -161,13 +180,55 @@ export default function ProfilesPage() {
         const data = await res.json();
         throw new Error(data.error || 'Failed to record outcome');
       }
-      setDecisions((prev) =>
-        prev.map((d) => (d.id === decisionId ? { ...d, outcome } : d))
-      );
+      setDecisions((prev) => prev.map((d) => (d.id === decisionId ? { ...d, outcome } : d)));
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Outcome error');
     }
   }, [profile]);
+
+  const seedSampleProfiles = useCallback(async () => {
+    setSeedLoading(true);
+    setError(null);
+    try {
+      await Promise.all(SAMPLE_PROFILES.map((sp) =>
+        fetch('/api/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ customerId: sp.customer_id, attributes: sp.attributes }),
+        })
+      ));
+      setSeedDone(true);
+      await loadAll();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Seed failed');
+    } finally {
+      setSeedLoading(false);
+    }
+  }, [loadAll]);
+
+  const createProfile = useCallback(async () => {
+    if (!createId.trim()) return;
+    setCreateLoading(true);
+    setError(null);
+    try {
+      const attrs: Record<string, unknown> = {};
+      Object.entries(createAttrs).forEach(([k, v]) => { if (v.trim()) attrs[k] = v.trim(); });
+      const res = await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: createId.trim(), attributes: attrs }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Create failed'); }
+      setShowCreate(false);
+      setCreateId('');
+      setCreateAttrs({ age: '', income_band: '', product_interest: '', channel_preference: '' });
+      lookupProfile(createId.trim());
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Create failed');
+    } finally {
+      setCreateLoading(false);
+    }
+  }, [createId, createAttrs, lookupProfile]);
 
   const attrEntries = Object.entries(editAttrs);
 
@@ -181,15 +242,40 @@ export default function ProfilesPage() {
             Persistent customer context and interaction history
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setShowCreate(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '8px 16px', borderRadius: '8px',
+              background: 'var(--brand-accent)', color: '#fff',
+              border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 500,
+            }}
+          >
+            <UserPlus size={15} /> Create Profile
+          </button>
+          <button
+            onClick={seedSampleProfiles}
+            disabled={seedLoading || seedDone}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '8px 16px', borderRadius: '8px',
+              background: seedDone ? '#dcfce7' : 'var(--bg-panel)',
+              color: seedDone ? '#15803d' : 'var(--text-primary)',
+              border: '1px solid var(--border)',
+              cursor: seedLoading || seedDone ? 'not-allowed' : 'pointer',
+              fontSize: '14px', fontWeight: 500, opacity: seedLoading ? 0.7 : 1,
+            }}
+          >
+            {seedDone ? '✓ Seeded' : seedLoading ? 'Seeding…' : '+ Seed Sample Data'}
+          </button>
           <button
             onClick={loadAll}
             style={{
               display: 'flex', alignItems: 'center', gap: '6px',
               padding: '8px 16px', borderRadius: '8px',
-              background: browseMode ? 'var(--brand-accent)' : 'var(--bg-panel)',
-              color: browseMode ? '#fff' : 'var(--text-primary)',
-              border: '1px solid var(--border)',
+              background: browseMode ? 'var(--bg-panel)' : 'var(--bg-panel)',
+              color: 'var(--text-primary)', border: '1px solid var(--border)',
               cursor: 'pointer', fontSize: '14px', fontWeight: 500,
             }}
           >
@@ -200,16 +286,36 @@ export default function ProfilesPage() {
             style={{
               display: 'flex', alignItems: 'center', gap: '6px',
               padding: '8px 16px', borderRadius: '8px',
-              background: !browseMode ? 'var(--brand-accent)' : 'var(--bg-panel)',
-              color: !browseMode ? '#fff' : 'var(--text-primary)',
-              border: '1px solid var(--border)',
-              cursor: 'pointer', fontSize: '14px', fontWeight: 500,
+              background: 'var(--bg-panel)', color: 'var(--text-primary)',
+              border: '1px solid var(--border)', cursor: 'pointer', fontSize: '14px', fontWeight: 500,
             }}
           >
             <Search size={15} /> Search
           </button>
         </div>
       </div>
+
+      {/* Not Configured Banner */}
+      {configured === false && (
+        <div style={{
+          display: 'flex', gap: '12px', alignItems: 'flex-start',
+          background: '#fffbeb', border: '1px solid #fcd34d',
+          borderRadius: '10px', padding: '16px 20px', marginBottom: '24px',
+        }}>
+          <AlertTriangle size={20} color="#b45309" style={{ flexShrink: 0, marginTop: '1px' }} />
+          <div>
+            <div style={{ fontWeight: 600, fontSize: '14px', color: '#92400e', marginBottom: '4px' }}>
+              Supabase not configured
+            </div>
+            <div style={{ fontSize: '13px', color: '#78350f' }}>
+              Customer Profiles requires a Supabase connection. Add <code>NEXT_PUBLIC_SUPABASE_URL</code>,{' '}
+              <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>, and <code>SUPABASE_SERVICE_ROLE_KEY</code> to your{' '}
+              <code>.env.local</code> file and restart the dev server. Also ensure you have run{' '}
+              <code>schema.sql</code> and <code>schema_v2.sql</code> in your Supabase SQL editor.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search Bar */}
       <div style={{
@@ -223,7 +329,7 @@ export default function ProfilesPage() {
           value={searchId}
           onChange={(e) => setSearchId(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && lookupProfile(searchId)}
-          placeholder="Enter customer ID..."
+          placeholder="Enter customer ID (e.g. CUST-001)…"
           style={{
             flex: 1, background: 'transparent', border: 'none', outline: 'none',
             color: 'var(--text-primary)', fontSize: '14px',
@@ -270,8 +376,22 @@ export default function ProfilesPage() {
             <tbody>
               {allProfiles.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-                    No profiles found
+                  <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
+                    No profiles found.{' '}
+                    <button
+                      onClick={seedSampleProfiles}
+                      style={{ background: 'none', border: 'none', color: 'var(--brand-accent)', cursor: 'pointer', fontSize: '14px', padding: 0 }}
+                    >
+                      Seed sample data
+                    </button>
+                    {' '}or{' '}
+                    <button
+                      onClick={() => setShowCreate(true)}
+                      style={{ background: 'none', border: 'none', color: 'var(--brand-accent)', cursor: 'pointer', fontSize: '14px', padding: 0 }}
+                    >
+                      create a profile
+                    </button>
+                    .
                   </td>
                 </tr>
               ) : (
@@ -310,7 +430,7 @@ export default function ProfilesPage() {
       )}
 
       {/* Empty state */}
-      {!loading && !browseMode && !profile && (
+      {!loading && !browseMode && !profile && configured !== false && (
         <div style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           padding: '80px 32px', background: 'var(--bg-panel)', border: '1px solid var(--border)',
@@ -320,9 +440,58 @@ export default function ProfilesPage() {
           <h2 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)' }}>
             Search for a customer
           </h2>
-          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', maxWidth: '360px' }}>
-            Enter a customer ID above to view their profile and decision history
+          <p style={{ margin: '0 0 20px', color: 'var(--text-muted)', fontSize: '14px', maxWidth: '360px' }}>
+            Enter a customer ID above to view their profile and decision history, or browse all profiles.
           </p>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              onClick={() => setShowCreate(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '9px 20px', borderRadius: '8px',
+                background: 'var(--brand-accent)', color: '#fff',
+                border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 500,
+              }}
+            >
+              <UserPlus size={15} /> Create Profile
+            </button>
+            <button
+              onClick={seedSampleProfiles}
+              disabled={seedLoading || seedDone}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '9px 20px', borderRadius: '8px',
+                background: 'var(--bg)', color: 'var(--text-primary)',
+                border: '1px solid var(--border)', cursor: seedLoading || seedDone ? 'not-allowed' : 'pointer',
+                fontSize: '14px', fontWeight: 500,
+              }}
+            >
+              {seedDone ? '✓ Seeded' : '+ Seed Sample Data'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Profile not found state */}
+      {!loading && !browseMode && profile === null && configured === true && searchId && (
+        <div style={{
+          textAlign: 'center', padding: '48px 32px',
+          background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: '12px',
+        }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '15px', margin: '0 0 16px' }}>
+            No profile found for <strong style={{ color: 'var(--text-primary)' }}>{searchId}</strong>
+          </p>
+          <button
+            onClick={() => { setCreateId(searchId); setShowCreate(true); }}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              padding: '8px 18px', borderRadius: '8px',
+              background: 'var(--brand-accent)', color: '#fff',
+              border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 500,
+            }}
+          >
+            <UserPlus size={15} /> Create profile for {searchId}
+          </button>
         </div>
       )}
 
@@ -331,9 +500,7 @@ export default function ProfilesPage() {
         <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
           {/* LEFT COLUMN */}
           <div style={{ flex: '0 0 40%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Profile card */}
             <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
-              {/* Header */}
               <div style={{ marginBottom: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
                   <span style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>
@@ -411,7 +578,6 @@ export default function ProfilesPage() {
                   </tbody>
                 </table>
 
-                {/* Add attribute */}
                 {addingAttr ? (
                   <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
                     <input
@@ -438,9 +604,7 @@ export default function ProfilesPage() {
                       onClick={() => {
                         if (newAttrKey.trim()) {
                           setEditAttrs((prev) => ({ ...prev, [newAttrKey.trim()]: newAttrValue }));
-                          setNewAttrKey('');
-                          setNewAttrValue('');
-                          setAddingAttr(false);
+                          setNewAttrKey(''); setNewAttrValue(''); setAddingAttr(false);
                         }
                       }}
                       style={{
@@ -490,9 +654,7 @@ export default function ProfilesPage() {
               </div>
 
               {/* GDPR */}
-              <div style={{
-                borderTop: '1px solid var(--border)', paddingTop: '16px', marginTop: '4px',
-              }}>
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px', marginTop: '4px' }}>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
                   Right to Erasure
                 </div>
@@ -529,7 +691,7 @@ export default function ProfilesPage() {
 
               {decisions.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', fontSize: '14px' }}>
-                  No decisions recorded yet
+                  No decisions recorded yet for this customer
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -610,6 +772,87 @@ export default function ProfilesPage() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Profile Modal */}
+      {showCreate && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowCreate(false); }}
+        >
+          <div style={{
+            background: 'var(--bg-panel)', border: '1px solid var(--border)',
+            borderRadius: '14px', padding: '28px', width: '460px', maxWidth: '90vw',
+          }}>
+            <h2 style={{ margin: '0 0 20px', fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)' }}>
+              Create Customer Profile
+            </h2>
+
+            <div style={{ marginBottom: '14px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Customer ID *
+              </label>
+              <input
+                value={createId}
+                onChange={(e) => setCreateId(e.target.value)}
+                placeholder="e.g. CUST-100"
+                style={{
+                  width: '100%', padding: '9px 12px', borderRadius: '8px',
+                  border: '1px solid var(--border)', background: 'var(--bg)',
+                  color: 'var(--text-primary)', fontSize: '14px', outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Initial Attributes
+            </div>
+
+            {Object.keys(createAttrs).map((k) => (
+              <div key={k} style={{ display: 'flex', gap: '8px', marginBottom: '10px', alignItems: 'center' }}>
+                <div style={{ width: '140px', fontSize: '13px', color: 'var(--text-muted)', fontFamily: 'monospace', flexShrink: 0 }}>{k}</div>
+                <input
+                  value={createAttrs[k]}
+                  onChange={(e) => setCreateAttrs((prev) => ({ ...prev, [k]: e.target.value }))}
+                  placeholder={k === 'age' ? '34' : k === 'income_band' ? 'high / medium / low' : k === 'product_interest' ? 'mortgage / savings…' : 'mobile / email / web'}
+                  style={{
+                    flex: 1, padding: '7px 10px', borderRadius: '7px',
+                    border: '1px solid var(--border)', background: 'var(--bg)',
+                    color: 'var(--text-primary)', fontSize: '13px', outline: 'none',
+                  }}
+                />
+              </div>
+            ))}
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setShowCreate(false); setCreateId(''); }}
+                style={{
+                  padding: '9px 20px', borderRadius: '8px',
+                  background: 'var(--bg)', color: 'var(--text-muted)',
+                  border: '1px solid var(--border)', cursor: 'pointer', fontSize: '14px',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={createProfile}
+                disabled={createLoading || !createId.trim()}
+                style={{
+                  padding: '9px 20px', borderRadius: '8px',
+                  background: 'var(--brand-accent)', color: '#fff',
+                  border: 'none', cursor: createLoading || !createId.trim() ? 'not-allowed' : 'pointer',
+                  fontSize: '14px', fontWeight: 600, opacity: createLoading || !createId.trim() ? 0.7 : 1,
+                }}
+              >
+                {createLoading ? 'Creating…' : 'Create Profile'}
+              </button>
             </div>
           </div>
         </div>
