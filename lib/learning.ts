@@ -293,7 +293,7 @@ export async function applyFeedback(opts: {
   }
 
   // Write detailed audit record
-  await serviceSupabase.from('config_audit').insert({
+  await serviceSupabase.from('config_audit_log').insert({
     tenant_id:    tenantId,
     entity_type:  'adaptive_feedback',
     entity_id:    actionId,

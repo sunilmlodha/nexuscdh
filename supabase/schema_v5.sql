@@ -7,5 +7,5 @@ ALTER TABLE adaptive_models
   ADD COLUMN IF NOT EXISTS model_config jsonb DEFAULT '{}';
 
 -- Index on config_audit for adaptive_feedback lookups
-CREATE INDEX IF NOT EXISTS config_audit_entity_type_id
-  ON config_audit (tenant_id, entity_type, entity_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS config_audit_log_entity_type_id
+  ON config_audit_log (tenant_id, entity_type, entity_id, created_at DESC);

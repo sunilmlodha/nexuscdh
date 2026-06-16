@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'actionId required' }, { status: 400 });
 
   const { data, error } = await serviceSupabase
-    .from('config_audit')
+    .from('config_audit_log')
     .select('id, entity_name, action, after_snapshot, created_at')
     .eq('tenant_id', tenantId)
     .eq('entity_type', 'adaptive_feedback')
