@@ -125,6 +125,7 @@ export async function POST(req: NextRequest) {
     tenantId?: string;
     populationSize?: number;
     useRealProfiles?: boolean;
+    source?: string;
     seedAttributes?: Record<string, unknown>;
   };
   try { body = await req.json(); }
@@ -134,9 +135,9 @@ export async function POST(req: NextRequest) {
     strategyId,
     tenantId = 'f0000000-0000-4000-a000-000000000001',
     populationSize = 1000,
-    useRealProfiles = false,
     seedAttributes = {},
   } = body;
+  const useRealProfiles = body.useRealProfiles ?? body.source === 'real';
 
   if (!strategyId) return NextResponse.json({ error: 'strategyId required' }, { status: 400 });
 
@@ -191,22 +192,41 @@ export async function POST(req: NextRequest) {
 
   const total = population.length;
 
+  const suppressionBreakdownArr = Object.entries(suppressionBreakdown).map(([reason, count]) => ({
+    reason,
+    count,
+    pct: Math.round((count / total) * 1000) / 10,
+  }));
+
+  const actionBreakdownArr = Object.entries(actionBreakdown).map(([actionName, count]) => {
+    const action = actions.find(a => a.name === actionName);
+    return {
+      actionId:   action?.id ?? actionName,
+      actionName,
+      count,
+      pct: Math.round((count / total) * 1000) / 10,
+    };
+  });
+
+  const projectedRevenue = Object.entries(actionBreakdown).reduce((sum, [name, count]) => {
+    const action = actions.find(a => a.name === name);
+    return sum + count * (action?.expected_value ?? 0);
+  }, 0);
+
   return NextResponse.json({
     strategyId,
     strategyName:    strategy.name,
-    populationSize:  total,
-    useRealProfiles,
-    results: {
-      served,      servedPct:    Math.round((served    / total) * 1000) / 10,
-      suppressed,  suppressedPct: Math.round((suppressed / total) * 1000) / 10,
-      noMatch,     noMatchPct:    Math.round((noMatch   / total) * 1000) / 10,
-    },
-    suppressionBreakdown,
-    actionBreakdown,
-    projectedRevenue: Object.entries(actionBreakdown).reduce((sum, [name, count]) => {
-      const action = actions.find(a => a.name === name);
-      return sum + count * (action?.expected_value ?? 0);
-    }, 0),
+    totalSimulated:  total,
+    source:          useRealProfiles ? 'real' : 'synthetic',
+    served,
+    servedPct:       Math.round((served    / total) * 1000) / 10,
+    suppressed,
+    suppressedPct:   Math.round((suppressed / total) * 1000) / 10,
+    noMatch,
+    noMatchPct:      Math.round((noMatch   / total) * 1000) / 10,
+    suppressionBreakdown: suppressionBreakdownArr,
+    actionBreakdown:      actionBreakdownArr,
+    projectedRevenue,
     latencyMs: Date.now() - start,
   });
 }

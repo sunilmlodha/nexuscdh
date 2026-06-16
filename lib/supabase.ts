@@ -330,11 +330,28 @@ export async function upsertCustomerProfile(
   attributes: Record<string, unknown>
 ): Promise<void> {
   if (!serviceSupabase) return;
-  await serviceSupabase.rpc('upsert_customer_profile', {
-    p_tenant_id: tenantId,
-    p_customer_id: customerId,
-    p_attributes: attributes,
-  });
+  // Fetch existing to merge attributes rather than overwrite
+  const { data: existing } = await serviceSupabase
+    .from('customer_profiles').select('id, attributes, interaction_count')
+    .eq('tenant_id', tenantId).eq('customer_id', customerId).single();
+
+  if (existing) {
+    await serviceSupabase.from('customer_profiles').update({
+      attributes: { ...(existing.attributes ?? {}), ...attributes },
+      last_seen_at: new Date().toISOString(),
+      interaction_count: (existing.interaction_count ?? 0) + 1,
+      updated_at: new Date().toISOString(),
+    }).eq('tenant_id', tenantId).eq('customer_id', customerId);
+  } else {
+    await serviceSupabase.from('customer_profiles').insert({
+      tenant_id: tenantId,
+      customer_id: customerId,
+      attributes,
+      segments: [],
+      interaction_count: 0,
+      last_seen_at: new Date().toISOString(),
+    });
+  }
 }
 
 export async function deleteCustomerProfile(

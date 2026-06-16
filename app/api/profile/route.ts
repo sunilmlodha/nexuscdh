@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   if (listAll) {
     const profiles = await fetchCustomerProfiles(tenantId, 200);
-    return NextResponse.json({ data: profiles, configured: true });
+    return NextResponse.json({ profiles, configured: true });
   }
 
   if (!customerId) return NextResponse.json({ error: 'customerId required' }, { status: 400 });
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     profile,
-    recentDecisions: decisionsResult.data ?? [],
+    decisions: decisionsResult.data ?? [],
     configured: true,
   });
 }
