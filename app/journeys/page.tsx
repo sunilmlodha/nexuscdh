@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Route, Plus, Edit2, Trash2, X, ChevronDown, ChevronRight, Mail, MessageSquare, Bell, Monitor, Phone, Send } from 'lucide-react';
+import { Route, Plus, Edit2, Trash2, X, ChevronRight, Mail, MessageSquare, Bell, Monitor, Phone, Send, History } from 'lucide-react';
+import { AuditDrawer, ConfirmDialog } from '../components/AuditDrawer';
 
 const TENANT_ID = 'f0000000-0000-4000-a000-000000000001';
 
@@ -85,6 +86,9 @@ export default function JourneysPage() {
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState('');
 
+  const [audit, setAudit]     = useState<{ id?: string; name: string } | null>(null);
+  const [confirmDel, setConfirmDel] = useState<{ id: string; name: string } | null>(null);
+
   const fetchJourneys = useCallback(async () => {
     const res = await fetch(`/api/journeys?tenantId=${TENANT_ID}`);
     const json = await res.json();
@@ -116,8 +120,8 @@ export default function JourneysPage() {
   }
 
   async function deleteJourney(id: string) {
-    if (!confirm('Delete this journey?')) return;
     await fetch(`/api/journeys?id=${id}&tenantId=${TENANT_ID}`, { method: 'DELETE' });
+    setConfirmDel(null);
     fetchJourneys();
   }
 
@@ -214,8 +218,9 @@ export default function JourneysPage() {
                         <span style={{ padding:'2px 8px', borderRadius:20, fontSize:11, fontWeight:600, background:`${INDUSTRY_COLORS[j.industry] ?? '#6b7280'}20`, color:INDUSTRY_COLORS[j.industry] ?? '#6b7280', textTransform:'capitalize' }}>{j.industry}</span>
                       )}
                       <span style={{ padding:'2px 8px', borderRadius:20, fontSize:11, fontWeight:600, background:`${STATUS_COLORS[j.status]}20`, color:STATUS_COLORS[j.status], textTransform:'capitalize' }}>{j.status}</span>
-                      <button onClick={e => { e.stopPropagation(); openEdit(j); }} style={{ padding:4, background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)' }}><Edit2 size={13} /></button>
-                      <button onClick={e => { e.stopPropagation(); deleteJourney(j.id); }} style={{ padding:4, background:'none', border:'none', cursor:'pointer', color:'#ef4444' }}><Trash2 size={13} /></button>
+                      <button onClick={e => { e.stopPropagation(); setAudit({ id:j.id, name:j.name }); }} title="Audit history" style={{ padding:4, background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)' }}><History size={13} /></button>
+                      <button onClick={e => { e.stopPropagation(); openEdit(j); }} title="Edit" style={{ padding:4, background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)' }}><Edit2 size={13} /></button>
+                      <button onClick={e => { e.stopPropagation(); setConfirmDel({ id:j.id, name:j.name }); }} title="Delete" style={{ padding:4, background:'none', border:'none', cursor:'pointer', color:'#ef4444' }}><Trash2 size={13} /></button>
                     </div>
                   </div>
 
@@ -379,6 +384,21 @@ export default function JourneysPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Audit History Drawer */}
+      {audit && (
+        <AuditDrawer entityType="journey" entityId={audit.id} entityName={audit.name} onClose={() => setAudit(null)} />
+      )}
+
+      {/* Delete Confirmation */}
+      {confirmDel && (
+        <ConfirmDialog
+          title="Delete journey?"
+          message={`"${confirmDel.name}" will be archived and removed from active lists. This action is recorded in the audit log.`}
+          onConfirm={() => deleteJourney(confirmDel.id)}
+          onCancel={() => setConfirmDel(null)}
+        />
       )}
     </div>
   );

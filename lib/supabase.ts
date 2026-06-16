@@ -475,12 +475,14 @@ export async function insertConfigAudit(
 export async function fetchConfigAudit(
   tenantId = DEFAULT_TENANT,
   entityType?: string,
-  limit = 50
+  limit = 50,
+  entityId?: string
 ): Promise<DBConfigAudit[]> {
   if (!serviceSupabase) return [];
   let q = serviceSupabase.from('config_audit_log').select('*')
     .eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(limit);
   if (entityType) q = q.eq('entity_type', entityType);
+  if (entityId)   q = q.eq('entity_id', entityId);
   const { data } = await q;
   return data ?? [];
 }

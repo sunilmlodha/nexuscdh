@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Package, Plus, Edit2, Trash2, X, ChevronDown } from 'lucide-react';
+import { Package, Plus, Edit2, Trash2, X, History } from 'lucide-react';
+import { AuditDrawer, ConfirmDialog } from '../components/AuditDrawer';
 
 const TENANT_ID = 'f0000000-0000-4000-a000-000000000001';
 
@@ -83,6 +84,9 @@ export default function TreatmentsPage() {
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState('');
 
+  const [audit, setAudit]     = useState<{ type: string; id?: string; name: string } | null>(null);
+  const [confirmDel, setConfirmDel] = useState<{ kind: 'treatment'|'bundle'; id: string; name: string } | null>(null);
+
   const fetchTreatments = useCallback(async () => {
     const res = await fetch(`/api/treatments?tenantId=${TENANT_ID}`);
     const json = await res.json();
@@ -123,8 +127,8 @@ export default function TreatmentsPage() {
   }
 
   async function deleteTreatment(id: string) {
-    if (!confirm('Delete this treatment?')) return;
     await fetch(`/api/treatments?id=${id}&tenantId=${TENANT_ID}`, { method: 'DELETE' });
+    setConfirmDel(null);
     fetchTreatments();
   }
 
@@ -145,8 +149,8 @@ export default function TreatmentsPage() {
   }
 
   async function deleteBundle(id: string) {
-    if (!confirm('Delete this bundle?')) return;
     await fetch(`/api/bundles?id=${id}&tenantId=${TENANT_ID}`, { method: 'DELETE' });
+    setConfirmDel(null);
     fetchBundles();
   }
 
@@ -226,8 +230,9 @@ export default function TreatmentsPage() {
                     </td>
                     <td style={{ padding:'12px 16px' }}>
                       <div style={{ display:'flex', gap:4 }}>
-                        <button onClick={() => openEditTreatment(t)} style={{ padding:4, background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)' }}><Edit2 size={13} /></button>
-                        <button onClick={() => deleteTreatment(t.id)} style={{ padding:4, background:'none', border:'none', cursor:'pointer', color:'#ef4444' }}><Trash2 size={13} /></button>
+                        <button onClick={() => setAudit({ type:'treatment', id:t.id, name:t.name })} title="Audit history" style={{ padding:4, background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)' }}><History size={13} /></button>
+                        <button onClick={() => openEditTreatment(t)} title="Edit" style={{ padding:4, background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)' }}><Edit2 size={13} /></button>
+                        <button onClick={() => setConfirmDel({ kind:'treatment', id:t.id, name:t.name })} title="Delete" style={{ padding:4, background:'none', border:'none', cursor:'pointer', color:'#ef4444' }}><Trash2 size={13} /></button>
                       </div>
                     </td>
                   </tr>
@@ -253,8 +258,9 @@ export default function TreatmentsPage() {
                       {b.description && <div style={{ fontSize:12, color:'var(--text-muted)', marginTop:4 }}>{b.description}</div>}
                     </div>
                     <div style={{ display:'flex', gap:4 }}>
-                      <button onClick={() => openEditBundle(b)} style={{ padding:4, background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)' }}><Edit2 size={13} /></button>
-                      <button onClick={() => deleteBundle(b.id)} style={{ padding:4, background:'none', border:'none', cursor:'pointer', color:'#ef4444' }}><Trash2 size={13} /></button>
+                      <button onClick={() => setAudit({ type:'bundle', id:b.id, name:b.name })} title="Audit history" style={{ padding:4, background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)' }}><History size={13} /></button>
+                      <button onClick={() => openEditBundle(b)} title="Edit" style={{ padding:4, background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)' }}><Edit2 size={13} /></button>
+                      <button onClick={() => setConfirmDel({ kind:'bundle', id:b.id, name:b.name })} title="Delete" style={{ padding:4, background:'none', border:'none', cursor:'pointer', color:'#ef4444' }}><Trash2 size={13} /></button>
                     </div>
                   </div>
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:10 }}>
@@ -380,6 +386,21 @@ export default function TreatmentsPage() {
           {error && <div style={{ color:'#ef4444', fontSize:12, marginTop:8 }}>{error}</div>}
           <ModalFooter onCancel={() => { setBModal(false); setError(''); }} onSave={saveBundle} saving={saving} />
         </Modal>
+      )}
+
+      {/* Audit History Drawer */}
+      {audit && (
+        <AuditDrawer entityType={audit.type} entityId={audit.id} entityName={audit.name} onClose={() => setAudit(null)} />
+      )}
+
+      {/* Delete Confirmation */}
+      {confirmDel && (
+        <ConfirmDialog
+          title={`Delete ${confirmDel.kind}?`}
+          message={`"${confirmDel.name}" will be archived and removed from active lists. This action is recorded in the audit log.`}
+          onConfirm={() => confirmDel.kind === 'treatment' ? deleteTreatment(confirmDel.id) : deleteBundle(confirmDel.id)}
+          onCancel={() => setConfirmDel(null)}
+        />
       )}
     </div>
   );
