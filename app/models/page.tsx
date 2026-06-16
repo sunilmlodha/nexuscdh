@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useStore } from '@/lib/store';
-import { Brain, Plus, ChevronDown, ChevronUp, Trash2, X, Save, Activity, TrendingUp, Zap, Eye } from 'lucide-react';
+import { Brain, Plus, ChevronDown, ChevronUp, Trash2, X, Save, Activity, TrendingUp, Zap, Eye, FlaskConical, Info } from 'lucide-react';
 
 const TENANT_ID = 'f0000000-0000-4000-a000-000000000001';
 
@@ -11,6 +11,55 @@ const MODEL_TYPES = [
   { value: 'neural_net',          label: 'Neural Network',      desc: 'Best for complex feature interactions' },
   { value: 'bayesian',            label: 'Bayesian',            desc: 'Incorporates prior beliefs, great for small data' },
 ];
+
+const ALGO_DETAIL: Record<string, {
+  rule: string; formula: string; learnRate: string;
+  strength: string; weakness: string; color: string;
+}> = {
+  logistic_regression: {
+    rule:      'Online gradient descent on log-loss. Correct predictions get a smaller nudge; wrong predictions get a larger correction.',
+    formula:   'p ← p + (y − p) × η    where η = 0.05, y ∈ {0, 1}',
+    learnRate: '0.05 fixed',
+    strength:  'Interpretable, stable, works well with noisy data',
+    weakness:  'Cannot capture non-linear feature interactions',
+    color:     '#6366F1',
+  },
+  gradient_boosting: {
+    rule:      'Higher base rate (0.08) dampened by signal consistency. When recent outcomes are mixed, the effective rate drops — preventing overfit to noise.',
+    formula:   'p ← p + Δ × consistency_weight    (base η = 0.08)',
+    learnRate: '0.08 × consistency (adaptive)',
+    strength:  'Robust to noisy signals, faster convergence when signal is clear',
+    weakness:  'Can update slowly when outcomes are mixed',
+    color:     '#059669',
+  },
+  neural_net: {
+    rule:      'SGD with momentum (m=0.9). Tracks the direction of the last update. Amplifies if new signal agrees (momentum), dampens if it disagrees (reversal).',
+    formula:   'v ← 0.9v + 0.1∇L,   p ← p + v',
+    learnRate: '0.05 base + momentum blending',
+    strength:  'Adapts quickly when signal is consistent; self-corrects on reversals',
+    weakness:  'Can overshoot during sudden preference changes',
+    color:     '#D97706',
+  },
+  bayesian: {
+    rule:      'Beta-Binomial conjugate update. Maintains α (successes) and β (failures) counts. Propensity = α/(α+β). No hardcoded learning rate — driven purely by evidence.',
+    formula:   'p = α/(α+β),   α ← α+1 on accept,   β ← β+1 on reject',
+    learnRate: 'None — posterior driven by evidence count',
+    strength:  'Principled uncertainty estimates, naturally converges, best for sparse data',
+    weakness:  'Slower to react to sudden shifts in customer preference',
+    color:     '#7C3AED',
+  },
+};
+
+interface AuditEntry {
+  id: string;
+  created_at: string;
+  after_snapshot: {
+    outcome: string; channel: string; algorithm: string;
+    formula: string; explanation: string;
+    before: number; after: number; delta: number;
+    decisionId?: string;
+  };
+}
 
 const STANDARD_FEATURES = [
   'age', 'tenure_months', 'product_count', 'credit_score', 'income_band',
@@ -340,7 +389,9 @@ function ModelCard({
   const [history, setHistory]               = useState<HistoryPoint[]>([]);
   const [channelBreakdown, setChannelBreakdown] = useState<ChannelBreakdown[]>([]);
   const [recentResponses, setRecentResponses]   = useState<HistoryPoint[]>([]);
+  const [auditLog, setAuditLog]             = useState<AuditEntry[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [activeTab, setActiveTab]           = useState<'chart'|'algorithm'|'audit'>('chart');
 
   const action = actions.find(a => a.id === model.action_id);
   const sm = STATUS_META[model.status] ?? STATUS_META.shadow;
@@ -349,19 +400,20 @@ function ModelCard({
   const loadHistory = async () => {
     if (history.length > 0) { setExpanded(e => !e); return; }
     setLoadingHistory(true);
-    // Load propensity history (from /api/models detail)
-    const [histRes, feedbackRes] = await Promise.all([
+    const [histRes, feedbackRes, auditRes] = await Promise.all([
       fetch(`/api/models?id=${model.id}&tenantId=${TENANT_ID}`),
       fetch(`/api/models/feedback?actionId=${model.action_id}&tenantId=${TENANT_ID}`),
+      fetch(`/api/models/audit?actionId=${model.action_id}&tenantId=${TENANT_ID}&limit=30`),
     ]);
     const histData     = await histRes.json();
     const feedbackData = await feedbackRes.json();
+    const auditData    = await auditRes.json();
     setHistory(histData.history ?? []);
     setChannelBreakdown(feedbackData.channelBreakdown ?? []);
-    // Most recent 10 responses with an outcome
     setRecentResponses(
       (feedbackData.history ?? []).filter((h: HistoryPoint) => h.outcome).slice(0, 10)
     );
+    setAuditLog(auditData.data ?? []);
     setLoadingHistory(false);
     setExpanded(true);
   };
@@ -488,119 +540,206 @@ function ModelCard({
           </button>
         </div>
 
-        {/* Expanded section: propensity chart + channel breakdown + recent responses */}
-        {expanded && (
-          <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 16,
-            display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-            {/* Propensity history chart */}
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 10,
-                textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <TrendingUp size={13} /> Propensity learning curve ({history.length} decisions)
+        {/* Expanded tabbed panel */}
+        {expanded && (() => {
+          const algo = ALGO_DETAIL[model.model_type] ?? ALGO_DETAIL.logistic_regression;
+          const tabs = [
+            { id: 'chart' as const,     label: 'Learning Curve', icon: <TrendingUp size={12} /> },
+            { id: 'algorithm' as const, label: 'Algorithm',      icon: <FlaskConical size={12} /> },
+            { id: 'audit' as const,     label: `Audit Trail (${auditLog.length})`, icon: <Info size={12} /> },
+          ];
+          return (
+            <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+              {/* Tab bar */}
+              <div style={{ display: 'flex', gap: 2, marginBottom: 16, background: '#F3F4F6', borderRadius: 8, padding: 3 }}>
+                {tabs.map(t => (
+                  <button key={t.id} onClick={() => setActiveTab(t.id)}
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                      padding: '6px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500,
+                      background: activeTab === t.id ? '#fff' : 'transparent',
+                      color: activeTab === t.id ? 'var(--text-primary)' : '#6B7280',
+                      boxShadow: activeTab === t.id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                      transition: 'all 0.15s',
+                    }}>
+                    {t.icon} {t.label}
+                  </button>
+                ))}
               </div>
-              {propensities.length < 2 ? (
-                <div style={{ fontSize: 13, color: '#9CA3AF', padding: '12px 0' }}>
-                  Not enough decisions yet — channel responses will populate this chart.
-                </div>
-              ) : (
-                <>
-                  <Sparkline points={propensities} width={560} height={60} />
-                  <div style={{ display: 'flex', gap: 16, marginTop: 10, flexWrap: 'wrap' }}>
-                    {(['accepted','rejected','ignored'] as const).map(outcome => {
-                      const count = history.filter(h => h.outcome === outcome).length;
-                      const colors: Record<string, string> = { accepted:'#059669', rejected:'#DC2626', ignored:'#9CA3AF' };
-                      return (
-                        <div key={outcome} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: colors[outcome] }} />
-                          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                            {outcome}: <strong>{count}</strong>
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
 
-            {/* Channel response breakdown */}
-            {channelBreakdown.length > 0 && (
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 10,
-                  textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Response Capture by Channel
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
-                  {channelBreakdown.map(ch => (
-                    <div key={ch.channel} style={{ background: '#F9FAFB', border: '1px solid #E5E7EB',
-                      borderRadius: 8, padding: '10px 14px' }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', textTransform: 'capitalize', marginBottom: 6 }}>
-                        {ch.channel}
+              {/* ── Tab: Learning Curve ── */}
+              {activeTab === 'chart' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#6B7280', marginBottom: 10,
+                      textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Propensity over last {history.length} decisions
+                    </div>
+                    {propensities.length < 2 ? (
+                      <div style={{ fontSize: 13, color: '#9CA3AF', padding: '12px 0' }}>
+                        No feedback recorded yet — submit outcomes via /api/outcome to see the learning curve.
                       </div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {(ch.acceptanceRate * 100).toFixed(1)}%
+                    ) : (
+                      <>
+                        <Sparkline points={propensities} width={540} height={60} />
+                        <div style={{ display: 'flex', gap: 16, marginTop: 10, flexWrap: 'wrap' }}>
+                          {(['accepted','rejected','ignored'] as const).map(o => {
+                            const count = history.filter(h => h.outcome === o).length;
+                            const colors: Record<string, string> = { accepted:'#059669', rejected:'#DC2626', ignored:'#9CA3AF' };
+                            return (
+                              <div key={o} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: colors[o] }} />
+                                <span style={{ fontSize: 12, color: '#6B7280' }}>{o}: <strong>{count}</strong></span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Channel breakdown */}
+                  {channelBreakdown.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#6B7280', marginBottom: 10,
+                        textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Response by Channel
                       </div>
-                      <div style={{ fontSize: 11, color: '#9CA3AF' }}>
-                        {ch.accepted}/{ch.served} served
-                      </div>
-                      {/* Acceptance bar */}
-                      <div style={{ height: 3, background: '#E5E7EB', borderRadius: 2, marginTop: 6 }}>
-                        <div style={{ height: '100%', width: `${ch.acceptanceRate * 100}%`,
-                          background: ch.acceptanceRate > 0.5 ? '#059669' : ch.acceptanceRate > 0.2 ? '#D97706' : '#DC2626',
-                          borderRadius: 2, transition: 'width 0.4s' }} />
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8 }}>
+                        {channelBreakdown.map(ch => (
+                          <div key={ch.channel} style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 14px' }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', textTransform: 'capitalize', marginBottom: 4 }}>{ch.channel}</div>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{(ch.acceptanceRate * 100).toFixed(1)}%</div>
+                            <div style={{ fontSize: 11, color: '#9CA3AF' }}>{ch.accepted}/{ch.served} served</div>
+                            <div style={{ height: 3, background: '#E5E7EB', borderRadius: 2, marginTop: 6 }}>
+                              <div style={{ height: '100%', width: `${ch.acceptanceRate * 100}%`,
+                                background: ch.acceptanceRate > 0.5 ? '#059669' : ch.acceptanceRate > 0.2 ? '#D97706' : '#DC2626',
+                                borderRadius: 2 }} />
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))}
+                  )}
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Recent channel responses feed */}
-            {recentResponses.length > 0 && (
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 10,
-                  textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Recent Responses (last {recentResponses.length})
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 1, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
-                  {recentResponses.map((r, i) => {
-                    const outcomeColors: Record<string, { bg: string; color: string }> = {
-                      accepted: { bg: '#F0FDF4', color: '#059669' },
-                      rejected: { bg: '#FEF2F2', color: '#DC2626' },
-                      ignored:  { bg: '#F9FAFB', color: '#9CA3AF' },
-                    };
-                    const oc = outcomeColors[r.outcome ?? ''] ?? outcomeColors.ignored;
-                    return (
-                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '90px 80px 80px 1fr',
-                        gap: 12, padding: '7px 12px', background: 'var(--bg-panel)',
-                        borderBottom: i < recentResponses.length - 1 ? '1px solid var(--border)' : 'none',
-                        alignItems: 'center', fontSize: 12 }}>
-                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20,
-                          background: oc.bg, color: oc.color, fontWeight: 600, textAlign: 'center' }}>
-                          {r.outcome}
-                        </span>
-                        <span style={{ color: '#6B7280', textTransform: 'capitalize' }}>{r.channel ?? '—'}</span>
-                        <span style={{ fontFamily: 'monospace', color: 'var(--text-primary)' }}>
-                          {r.propensity != null ? r.propensity.toFixed(4) : '—'}
-                        </span>
-                        <span style={{ color: '#9CA3AF', fontSize: 11 }}>
-                          {r.date ? new Date(r.date).toLocaleString() : ''}
-                        </span>
+              {/* ── Tab: Algorithm Transparency ── */}
+              {activeTab === 'algorithm' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {/* Algorithm identity */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: algo.color, flexShrink: 0 }} />
+                    <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)' }}>
+                      {MODEL_TYPES.find(m => m.value === model.model_type)?.label ?? model.model_type}
+                    </span>
+                    <span style={{ fontSize: 12, color: '#9CA3AF' }}>Learning rate: {algo.learnRate}</span>
+                  </div>
+
+                  {/* How it works */}
+                  <div style={{ background: '#F9FAFB', borderRadius: 8, padding: '12px 14px' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+                      Update Rule
+                    </div>
+                    <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: '0 0 10px', lineHeight: 1.6 }}>{algo.rule}</p>
+                    <div style={{ fontFamily: 'monospace', fontSize: 12, background: '#1E1E2E', color: '#A6E3A1',
+                      padding: '10px 14px', borderRadius: 6, letterSpacing: '0.02em' }}>
+                      {algo.formula}
+                    </div>
+                  </div>
+
+                  {/* Strengths / Weaknesses */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <div style={{ background: '#F0FDF4', borderRadius: 8, padding: '10px 14px' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
+                        Strengths
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+                      <p style={{ fontSize: 12, color: '#166534', margin: 0, lineHeight: 1.5 }}>{algo.strength}</p>
+                    </div>
+                    <div style={{ background: '#FEF2F2', borderRadius: 8, padding: '10px 14px' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#991B1B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
+                        Limitations
+                      </div>
+                      <p style={{ fontSize: 12, color: '#991B1B', margin: 0, lineHeight: 1.5 }}>{algo.weakness}</p>
+                    </div>
+                  </div>
 
-            {channelBreakdown.length === 0 && recentResponses.length === 0 && (
-              <div style={{ fontSize: 13, color: '#9CA3AF', padding: '4px 0' }}>
-                No channel responses recorded yet. Responses arrive via <code>/api/outcome</code> or <code>/api/v1/interactions/&#123;id&#125;/responses</code>.
-              </div>
-            )}
-          </div>
-        )}
+                  {/* Last update explanation */}
+                  {auditLog[0] && (
+                    <div style={{ background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: 8, padding: '12px 14px' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#4338CA', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+                        Last Update Explanation
+                      </div>
+                      <p style={{ fontSize: 12, color: '#3730A3', margin: '0 0 8px', lineHeight: 1.6 }}>
+                        {auditLog[0].after_snapshot.explanation}
+                      </p>
+                      <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#6366F1', background: '#fff', padding: '6px 10px', borderRadius: 5 }}>
+                        {auditLog[0].after_snapshot.formula}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Algorithm comparison hint */}
+                  <div style={{ fontSize: 12, color: '#9CA3AF', lineHeight: 1.5, borderTop: '1px solid #F3F4F6', paddingTop: 12 }}>
+                    <strong style={{ color: '#6B7280' }}>Tip:</strong> Run the same action in Shadow mode with a different algorithm to compare propensity trajectories before promoting to Live.
+                  </div>
+                </div>
+              )}
+
+              {/* ── Tab: Audit Trail ── */}
+              {activeTab === 'audit' && (
+                <div>
+                  {auditLog.length === 0 ? (
+                    <div style={{ fontSize: 13, color: '#9CA3AF', padding: '20px 0', textAlign: 'center' }}>
+                      No updates recorded yet. Every propensity change will appear here.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 1, border: '1px solid #E5E7EB', borderRadius: 8, overflow: 'hidden' }}>
+                      {auditLog.map((entry, i) => {
+                        const snap = entry.after_snapshot;
+                        const outcomeColor: Record<string, string> = { accepted: '#059669', rejected: '#DC2626', ignored: '#9CA3AF' };
+                        const deltaColor = snap.delta > 0 ? '#059669' : snap.delta < 0 ? '#DC2626' : '#9CA3AF';
+                        return (
+                          <div key={entry.id} style={{ padding: '10px 14px', background: '#fff',
+                            borderBottom: i < auditLog.length - 1 ? '1px solid #F3F4F6' : 'none' }}>
+                            {/* Row 1: outcome + delta + channel + time */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5, flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                                background: snap.outcome === 'accepted' ? '#D1FAE5' : snap.outcome === 'rejected' ? '#FEE2E2' : '#F3F4F6',
+                                color: outcomeColor[snap.outcome] ?? '#9CA3AF' }}>
+                                {snap.outcome}
+                              </span>
+                              <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: deltaColor }}>
+                                {snap.delta >= 0 ? '+' : ''}{snap.delta.toFixed(4)}
+                              </span>
+                              <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#6B7280' }}>
+                                {snap.before.toFixed(4)} → {snap.after.toFixed(4)}
+                              </span>
+                              <span style={{ fontSize: 11, color: '#9CA3AF', textTransform: 'capitalize' }}>
+                                via {snap.channel}
+                              </span>
+                              <span style={{ marginLeft: 'auto', fontSize: 11, color: '#9CA3AF' }}>
+                                {new Date(entry.created_at).toLocaleString()}
+                              </span>
+                            </div>
+                            {/* Row 2: explanation */}
+                            <p style={{ margin: '0 0 5px', fontSize: 12, color: '#6B7280', lineHeight: 1.5 }}>
+                              {snap.explanation}
+                            </p>
+                            {/* Row 3: formula chip */}
+                            <code style={{ fontSize: 11, color: '#6366F1', background: '#EEF2FF',
+                              padding: '2px 7px', borderRadius: 4 }}>
+                              {snap.formula}
+                            </code>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
