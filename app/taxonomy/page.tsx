@@ -1,9 +1,231 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useStore, ActionCategory, ActionTopic, Action } from '@/lib/store';
 import { usePermission } from '@/lib/auth';
-import { Plus, ChevronRight, Edit2, Trash2, X, Save, CheckCircle2, Layers } from 'lucide-react';
+import { Plus, ChevronRight, Edit2, Trash2, X, Save, CheckCircle2, Layers, Brain, ExternalLink } from 'lucide-react';
+
+const TENANT_ID = 'f0000000-0000-4000-a000-000000000001';
+
+const MODEL_TYPES = [
+  { value: 'logistic_regression', label: 'Logistic Regression', desc: 'Fast, interpretable, good baseline' },
+  { value: 'gradient_boosting',   label: 'Gradient Boosting',   desc: 'Adaptive rate based on signal consistency' },
+  { value: 'neural_net',          label: 'Neural Network',      desc: 'Momentum SGD, best for complex patterns' },
+  { value: 'bayesian',            label: 'Bayesian',            desc: 'Beta-Binomial — no learning rate, data-driven' },
+];
+
+interface ADMModel {
+  id: string;
+  name: string;
+  action_id: string;
+  model_type: string;
+  status: string;
+  auc?: number;
+  predictions_today?: number;
+  _stats?: { totalDecisions: number; acceptanceRate: number; currentPropensity: number | null };
+}
+
+const STATUS_COLORS: Record<string, { color: string; bg: string }> = {
+  live:     { color: '#059669', bg: '#D1FAE5' },
+  shadow:   { color: '#6366F1', bg: '#EEF2FF' },
+  training: { color: '#D97706', bg: '#FEF3C7' },
+  retired:  { color: '#9CA3AF', bg: '#F3F4F6' },
+};
+
+// ── Quick ADM panel opened from taxonomy row ──────────────────────────────────
+
+function ActionModelPanel({
+  action,
+  model,
+  onClose,
+  onRefresh,
+}: {
+  action: Action;
+  model: ADMModel | null;
+  onClose: () => void;
+  onRefresh: () => void;
+}) {
+  const [modelType, setModelType] = useState(model?.model_type ?? 'logistic_regression');
+  const [status, setStatus]       = useState(model?.status ?? 'shadow');
+  const [saving, setSaving]       = useState(false);
+  const [saved, setSaved]         = useState(false);
+  const [promoting, setPromoting] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    const body = {
+      ...(model?.id ? { id: model.id } : {}),
+      name:         `${action.name} — ${MODEL_TYPES.find(m => m.value === modelType)?.label ?? modelType}`,
+      description:  `Auto-created from taxonomy for action "${action.name}"`,
+      action_id:    action.id,
+      model_type:   modelType,
+      features:     ['age', 'tenure_months', 'product_count', 'channel_preference', 'churn_score'],
+      auc:          0.75,
+      lift_at_decile1: 2.0,
+      status,
+      tenantId:     TENANT_ID,
+    };
+    await fetch('/api/models', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    setSaving(false); setSaved(true);
+    setTimeout(() => { onRefresh(); }, 500);
+  };
+
+  const promote = async (newStatus: string) => {
+    if (!model) return;
+    setPromoting(true);
+    await fetch('/api/models', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...model, status: newStatus, tenantId: TENANT_ID }),
+    });
+    setPromoting(false);
+    onRefresh();
+  };
+
+  const sc = model ? (STATUS_COLORS[model.status] ?? STATUS_COLORS.retired) : null;
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{
+        background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 14,
+        padding: 28, width: 520, maxWidth: '92vw', maxHeight: '88vh', overflowY: 'auto',
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <Brain size={16} color="#6366F1" />
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
+                Adaptive Model
+              </h2>
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{action.name}</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Current model status */}
+        {model && (
+          <div style={{
+            background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10,
+            padding: '14px 16px', marginBottom: 20,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{model.name}</div>
+              {sc && (
+                <span style={{ background: sc.bg, color: sc.color, borderRadius: 999, padding: '3px 10px', fontSize: 11, fontWeight: 600 }}>
+                  {model.status.charAt(0).toUpperCase() + model.status.slice(1)}
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+              {[
+                { label: 'Algorithm', val: MODEL_TYPES.find(m => m.value === model.model_type)?.label ?? model.model_type },
+                { label: 'Decisions today', val: model.predictions_today ?? 0 },
+                { label: 'Acceptance rate', val: model._stats ? `${(model._stats.acceptanceRate * 100).toFixed(0)}%` : '—' },
+              ].map(s => (
+                <div key={s.label} style={{ background: 'var(--bg-panel)', borderRadius: 8, padding: '8px 10px' }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 3 }}>{s.label}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{String(s.val)}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Lifecycle controls */}
+            <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {model.status === 'shadow' && (
+                <button onClick={() => promote('live')} disabled={promoting}
+                  style={{ padding: '6px 14px', borderRadius: 7, background: '#D1FAE5', color: '#059669', border: '1px solid #6EE7B7', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                  {promoting ? 'Promoting…' : '▲ Promote to Live'}
+                </button>
+              )}
+              {model.status === 'live' && (
+                <button onClick={() => promote('shadow')} disabled={promoting}
+                  style={{ padding: '6px 14px', borderRadius: 7, background: '#EEF2FF', color: '#6366F1', border: '1px solid #C7D2FE', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                  {promoting ? '…' : '▼ Demote to Shadow'}
+                </button>
+              )}
+              {model.status !== 'retired' && (
+                <button onClick={() => promote('retired')} disabled={promoting}
+                  style={{ padding: '6px 14px', borderRadius: 7, background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB', cursor: 'pointer', fontSize: 12 }}>
+                  Retire
+                </button>
+              )}
+              <a href="/models" target="_blank" rel="noopener noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 14px', borderRadius: 7, background: 'var(--bg-panel)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12, textDecoration: 'none' }}>
+                <ExternalLink size={11} /> Full detail
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* Create / reconfigure */}
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+          {model ? 'Reconfigure Algorithm' : 'Create Adaptive Model'}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+          {MODEL_TYPES.map(mt => (
+            <button key={mt.value} onClick={() => setModelType(mt.value)}
+              style={{
+                padding: '10px 12px', borderRadius: 8, textAlign: 'left', cursor: 'pointer',
+                border: `2px solid ${modelType === mt.value ? '#6366F1' : 'var(--border)'}`,
+                background: modelType === mt.value ? '#EEF2FF' : 'var(--bg)',
+              }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{mt.label}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>{mt.desc}</div>
+            </button>
+          ))}
+        </div>
+
+        {!model && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+              Initial status
+            </label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {['shadow', 'live'].map(s => (
+                <button key={s} onClick={() => setStatus(s)}
+                  style={{
+                    padding: '7px 16px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    border: `2px solid ${status === s ? (STATUS_COLORS[s]?.color ?? '#6366F1') : 'var(--border)'}`,
+                    background: status === s ? (STATUS_COLORS[s]?.bg ?? '#EEF2FF') : 'var(--bg)',
+                    color: status === s ? (STATUS_COLORS[s]?.color ?? '#6366F1') : 'var(--text-muted)',
+                  }}>
+                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Info box */}
+        <div style={{ background: '#F0F0FF', border: '1px solid #C7D2FE', borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: 12, color: '#4338CA' }}>
+          <strong>Shadow</strong> — observes decisions and accumulates learning without affecting live propensity scores.{' '}
+          <strong>Live</strong> — actively updates <code style={{ fontFamily: 'monospace' }}>base_propensity</code> on every accepted/rejected outcome.
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onClose}
+            style={{ padding: '9px 18px', borderRadius: 8, background: 'var(--bg)', color: 'var(--text-muted)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: 13 }}>
+            Cancel
+          </button>
+          <button onClick={save} disabled={saving || saved}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 20px', borderRadius: 8, background: '#6366F1', color: '#fff', border: 'none', cursor: saving || saved ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, opacity: saving ? 0.7 : 1 }}>
+            {saved ? <><CheckCircle2 size={14} /> Saved</> : saving ? 'Saving…' : <><Save size={14} /> {model ? 'Update Algorithm' : 'Create Model'}</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const CATEGORY_COLORS = ['#1D4ED8','#7C3AED','#059669','#D97706','#DC2626','#0891B2','#9333EA','#16A34A','#EA580C','#BE185D'];
 const CHANNELS_LIST = ['email','web','mobile_app','sms','push','paid_social','display','programmatic','paid_search','branch','call_centre'];
@@ -222,6 +444,22 @@ export default function TaxonomyPage() {
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [activeTopic, setActiveTopic] = useState<string | null>(null);
 
+  // ADM state
+  const [models, setModels] = useState<ADMModel[]>([]);
+  const [admPanel, setAdmPanel] = useState<Action | null>(null);
+
+  const loadModels = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/models?tenantId=${TENANT_ID}`);
+      const d = await r.json();
+      setModels(d.data ?? []);
+    } catch { /* Supabase not configured — silently skip */ }
+  }, []);
+
+  useEffect(() => { loadModels(); }, [loadModels]);
+
+  const modelByActionId = Object.fromEntries(models.map(m => [m.action_id as string, m]));
+
   const visibleTopics = topics.filter(t => !activeCat || t.categoryId === activeCat);
   const visibleActions = actions.filter(a => {
     if (activeTopic) return a.topicId === activeTopic;
@@ -333,11 +571,13 @@ export default function TaxonomyPage() {
             </div>
           ) : (
             <table className="table">
-              <thead><tr><th>Action</th><th>Topic</th><th>Channels</th><th>Propensity</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>Action</th><th>Topic</th><th>Channels</th><th>Propensity</th><th>Status</th><th>ADM</th><th></th></tr></thead>
               <tbody>
                 {visibleActions.map(a => {
                   const topic = topics.find(t=>t.id===a.topicId);
                   const cat   = categories.find(c=>c.id===a.categoryId);
+                  const adm   = modelByActionId[a.id];
+                  const sc    = adm ? (STATUS_COLORS[adm.status] ?? STATUS_COLORS.retired) : null;
                   return (
                     <tr key={a.id}>
                       <td>
@@ -354,6 +594,23 @@ export default function TaxonomyPage() {
                       <td style={{ fontWeight:700, color:'var(--brand-accent)', fontFamily:'var(--font-mono)' }}>{a.basePropensity.toFixed(2)}</td>
                       <td>
                         <span className={`badge ${a.status==='active'?'badge-green':a.status==='draft'?'badge-gray':'badge-amber'}`}>{a.status}</span>
+                      </td>
+                      <td>
+                        <button
+                          onClick={() => setAdmPanel(a)}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                            padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                            cursor: 'pointer', border: `1px solid ${adm && sc ? sc.color+'44' : 'var(--border)'}`,
+                            background: adm ? (sc?.bg ?? 'var(--bg)') : 'var(--bg)',
+                            color: adm ? (sc?.color ?? 'var(--text-muted)') : 'var(--text-muted)',
+                          }}
+                        >
+                          <Brain size={11} />
+                          {adm
+                            ? adm.status.charAt(0).toUpperCase() + adm.status.slice(1)
+                            : 'Set up'}
+                        </button>
                       </td>
                       <td>
                         {canWrite && (
@@ -376,6 +633,14 @@ export default function TaxonomyPage() {
       {modal?.type==='category' && <CategoryModal cat={modal.data} onClose={()=>setModal(null)} />}
       {modal?.type==='topic'    && <TopicModal topic={modal.data} categories={categories} onClose={()=>setModal(null)} />}
       {modal?.type==='action'   && <ActionModal action={modal.data} topics={topics} categories={categories} onClose={()=>setModal(null)} />}
+      {admPanel && (
+        <ActionModelPanel
+          action={admPanel}
+          model={modelByActionId[admPanel.id] ?? null}
+          onClose={() => setAdmPanel(null)}
+          onRefresh={() => { loadModels(); setAdmPanel(null); }}
+        />
+      )}
     </div>
   );
 }
