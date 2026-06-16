@@ -30,9 +30,23 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const { decisionId, actionId, outcome, tenantId = 'f0000000-0000-4000-a000-000000000001' } = body;
-  if (!decisionId || !actionId || !outcome) {
-    return NextResponse.json({ error: 'decisionId, actionId, outcome required' }, { status: 400 });
+  let { decisionId, actionId, outcome, tenantId = 'f0000000-0000-4000-a000-000000000001' } = body;
+  if (!decisionId || !outcome) {
+    return NextResponse.json({ error: 'decisionId and outcome required' }, { status: 400 });
+  }
+
+  // If actionId not supplied, look it up from decision_log
+  if (!actionId) {
+    const { data: decision } = await serviceSupabase!
+      .from('decision_log')
+      .select('action_id')
+      .eq('id', decisionId)
+      .eq('tenant_id', tenantId)
+      .single();
+    if (!decision?.action_id) {
+      return NextResponse.json({ error: 'Decision not found or has no action_id' }, { status: 404 });
+    }
+    actionId = decision.action_id;
   }
 
   // Load current propensity
@@ -77,23 +91,35 @@ export async function POST(req: NextRequest) {
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
-  // Also update adaptive_models predictions_today counter if a model exists for this action
-  await serviceSupabase!
-    .from('adaptive_models')
-    .update({
-      predictions_today: serviceSupabase!.rpc('increment', { row_id: actionId }) as unknown as number,
-    })
-    .eq('action_id', actionId)
-    .eq('tenant_id', tenantId);
+  // Increment predictions_today on adaptive_models using direct SQL arithmetic
+  await serviceSupabase!.rpc('increment_predictions_today', { p_action_id: actionId, p_tenant_id: tenantId })
+    .then(() => null)
+    .catch(() => {
+      // Fallback: fetch current value and increment manually
+      return serviceSupabase!
+        .from('adaptive_models')
+        .select('id, predictions_today')
+        .eq('action_id', actionId)
+        .eq('tenant_id', tenantId)
+        .single()
+        .then(({ data: m }) => {
+          if (m) {
+            return serviceSupabase!
+              .from('adaptive_models')
+              .update({ predictions_today: (m.predictions_today ?? 0) + 1 })
+              .eq('id', m.id);
+          }
+        });
+    });
 
   return NextResponse.json({
     actionId,
-    actionName:   action.name,
-    previousPropensity: current,
-    updatedPropensity:  updated,
-    delta:         Math.round((updated - current) * 10000) / 10000,
+    actionName: action.name,
+    before:     current,
+    after:      updated,
+    delta:      Math.round((updated - current) * 10000) / 10000,
     outcome,
-    learningRate:  LEARNING_RATE,
+    learningRate: LEARNING_RATE,
   });
 }
 

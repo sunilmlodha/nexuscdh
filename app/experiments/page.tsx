@@ -352,7 +352,7 @@ export default function ExperimentsPage() {
       const res = await fetch('/api/experiments?tenantId=f0000000-0000-4000-a000-000000000001');
       if (res.ok) {
         const data = await res.json();
-        setExperiments(Array.isArray(data) ? data : data.experiments ?? []);
+        setExperiments(Array.isArray(data) ? data : (data.data ?? data.experiments ?? []));
       }
     } catch {
       // ignore fetch errors silently

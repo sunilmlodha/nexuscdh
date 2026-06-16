@@ -1,12 +1,39 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { usePermission } from '@/lib/auth';
 import { Brain, Send, CheckCircle } from 'lucide-react';
+import type { AdaptiveModel } from '@/lib/store';
 
 export default function ModelsPage() {
-  const { models, actions } = useStore();
+  const { actions } = useStore();
   const canWrite = usePermission('models:write');
+  const [models, setModels] = useState<AdaptiveModel[]>([]);
+  const [loadingModels, setLoadingModels] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/models?tenantId=f0000000-0000-4000-a000-000000000001')
+      .then(r => r.json())
+      .then(d => {
+        const rows = (d.data ?? []) as Record<string, unknown>[];
+        setModels(rows.map(m => ({
+          id:              String(m.id ?? ''),
+          name:            String(m.name ?? ''),
+          description:     m.description ? String(m.description) : undefined,
+          actionId:        String(m.action_id ?? ''),
+          modelType:       (m.model_type ?? 'logistic_regression') as AdaptiveModel['modelType'],
+          features:        (m.features as string[]) ?? [],
+          auc:             Number(m.auc ?? 0),
+          liftAtDecile1:   Number(m.lift_at_decile1 ?? 0),
+          trainedAt:       String(m.trained_at ?? ''),
+          status:          (m.status ?? 'shadow') as AdaptiveModel['status'],
+          predictionsToday: Number(m.predictions_today ?? 0),
+          createdAt:       String(m.created_at ?? ''),
+        })));
+      })
+      .catch(() => {})
+      .finally(() => setLoadingModels(false));
+  }, []);
   const STATUS_BADGE: Record<string,string> = { live:'badge-green', training:'badge-amber', shadow:'badge-blue', retired:'badge-gray' };
 
   const [fbDecisionId, setFbDecisionId] = useState('');
@@ -39,7 +66,9 @@ export default function ModelsPage() {
           <p className="page-subtitle">Propensity models per action. Trained on acceptance/rejection feedback from the decision engine.</p></div>
       </div>
       <div style={{ padding:'0 24px 24px' }}>
-        {models.length===0 ? (
+        {loadingModels ? (
+          <div className="card"><div className="empty-state"><div className="empty-state-body">Loading models…</div></div></div>
+        ) : models.length===0 ? (
           <div className="card">
             <div className="empty-state">
               <div style={{ fontSize:32, marginBottom:8, opacity:0.2 }}>🧠</div>
