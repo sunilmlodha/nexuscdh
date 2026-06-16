@@ -176,7 +176,7 @@ export default function ProfilesPage() {
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 700, color: 'var(--text)' }}>Customer Profiles</h1>
+          <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 700, color: 'var(--text-primary)' }}>Customer Profiles</h1>
           <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: '14px' }}>
             Persistent customer context and interaction history
           </p>
@@ -187,8 +187,8 @@ export default function ProfilesPage() {
             style={{
               display: 'flex', alignItems: 'center', gap: '6px',
               padding: '8px 16px', borderRadius: '8px',
-              background: browseMode ? 'var(--brand-accent)' : 'var(--card)',
-              color: browseMode ? '#fff' : 'var(--text)',
+              background: browseMode ? 'var(--brand-accent)' : 'var(--bg-panel)',
+              color: browseMode ? '#fff' : 'var(--text-primary)',
               border: '1px solid var(--border)',
               cursor: 'pointer', fontSize: '14px', fontWeight: 500,
             }}
@@ -200,8 +200,8 @@ export default function ProfilesPage() {
             style={{
               display: 'flex', alignItems: 'center', gap: '6px',
               padding: '8px 16px', borderRadius: '8px',
-              background: !browseMode ? 'var(--brand-accent)' : 'var(--card)',
-              color: !browseMode ? '#fff' : 'var(--text)',
+              background: !browseMode ? 'var(--brand-accent)' : 'var(--bg-panel)',
+              color: !browseMode ? '#fff' : 'var(--text-primary)',
               border: '1px solid var(--border)',
               cursor: 'pointer', fontSize: '14px', fontWeight: 500,
             }}
@@ -214,7 +214,7 @@ export default function ProfilesPage() {
       {/* Search Bar */}
       <div style={{
         display: 'flex', gap: '8px', marginBottom: '28px',
-        background: 'var(--card)', border: '1px solid var(--border)',
+        background: 'var(--bg-panel)', border: '1px solid var(--border)',
         borderRadius: '10px', padding: '12px 16px', alignItems: 'center',
       }}>
         <Search size={16} color="var(--text-muted)" />
@@ -226,7 +226,7 @@ export default function ProfilesPage() {
           placeholder="Enter customer ID..."
           style={{
             flex: 1, background: 'transparent', border: 'none', outline: 'none',
-            color: 'var(--text)', fontSize: '14px',
+            color: 'var(--text-primary)', fontSize: '14px',
           }}
         />
         <button
@@ -255,7 +255,7 @@ export default function ProfilesPage() {
 
       {/* Browse All Table */}
       {browseMode && !loading && (
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
@@ -277,10 +277,10 @@ export default function ProfilesPage() {
               ) : (
                 allProfiles.map((p) => (
                   <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontSize: '13px', color: 'var(--text)' }}>{p.customer_id}</td>
-                    <td style={{ padding: '12px 16px', color: 'var(--text)', fontSize: '14px' }}>{p.interaction_count}</td>
+                    <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontSize: '13px', color: 'var(--text-primary)' }}>{p.customer_id}</td>
+                    <td style={{ padding: '12px 16px', color: 'var(--text-primary)', fontSize: '14px' }}>{p.interaction_count}</td>
                     <td style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: '13px' }}>{formatDate(p.last_seen_at)}</td>
-                    <td style={{ padding: '12px 16px', color: 'var(--text)', fontSize: '14px' }}>{Object.keys(p.attributes || {}).length}</td>
+                    <td style={{ padding: '12px 16px', color: 'var(--text-primary)', fontSize: '14px' }}>{Object.keys(p.attributes || {}).length}</td>
                     <td style={{ padding: '12px 16px' }}>
                       <button
                         onClick={() => { setSearchId(p.customer_id); lookupProfile(p.customer_id); }}
@@ -288,7 +288,7 @@ export default function ProfilesPage() {
                           display: 'flex', alignItems: 'center', gap: '4px',
                           padding: '5px 12px', borderRadius: '6px',
                           background: 'var(--bg)', border: '1px solid var(--border)',
-                          color: 'var(--text)', cursor: 'pointer', fontSize: '13px',
+                          color: 'var(--text-primary)', cursor: 'pointer', fontSize: '13px',
                         }}
                       >
                         View <ChevronRight size={13} />
@@ -313,11 +313,11 @@ export default function ProfilesPage() {
       {!loading && !browseMode && !profile && (
         <div style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: '80px 32px', background: 'var(--card)', border: '1px solid var(--border)',
+          padding: '80px 32px', background: 'var(--bg-panel)', border: '1px solid var(--border)',
           borderRadius: '12px', textAlign: 'center',
         }}>
           <Users size={40} color="var(--text-muted)" style={{ marginBottom: '16px' }} />
-          <h2 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: 600, color: 'var(--text)' }}>
+          <h2 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)' }}>
             Search for a customer
           </h2>
           <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', maxWidth: '360px' }}>
@@ -332,11 +332,11 @@ export default function ProfilesPage() {
           {/* LEFT COLUMN */}
           <div style={{ flex: '0 0 40%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* Profile card */}
-            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+            <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
               {/* Header */}
               <div style={{ marginBottom: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
-                  <span style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>
                     {profile.customer_id}
                   </span>
                   <span style={{
@@ -391,7 +391,7 @@ export default function ProfilesPage() {
                             style={{
                               width: '100%', background: 'transparent', border: 'none',
                               borderBottom: '1px solid transparent', outline: 'none',
-                              color: 'var(--text)', fontSize: '13px', padding: '2px 4px',
+                              color: 'var(--text-primary)', fontSize: '13px', padding: '2px 4px',
                               cursor: 'text',
                             }}
                             onFocus={(e) => { e.currentTarget.style.borderBottomColor = 'var(--brand-accent)'; }}
@@ -421,7 +421,7 @@ export default function ProfilesPage() {
                       style={{
                         flex: 1, padding: '5px 8px', borderRadius: '6px',
                         border: '1px solid var(--border)', background: 'var(--bg)',
-                        color: 'var(--text)', fontSize: '12px', outline: 'none',
+                        color: 'var(--text-primary)', fontSize: '12px', outline: 'none',
                       }}
                     />
                     <input
@@ -431,7 +431,7 @@ export default function ProfilesPage() {
                       style={{
                         flex: 1, padding: '5px 8px', borderRadius: '6px',
                         border: '1px solid var(--border)', background: 'var(--bg)',
-                        color: 'var(--text)', fontSize: '12px', outline: 'none',
+                        color: 'var(--text-primary)', fontSize: '12px', outline: 'none',
                       }}
                     />
                     <button
@@ -493,7 +493,7 @@ export default function ProfilesPage() {
               <div style={{
                 borderTop: '1px solid var(--border)', paddingTop: '16px', marginTop: '4px',
               }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
                   Right to Erasure
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '10px' }}>
@@ -516,9 +516,9 @@ export default function ProfilesPage() {
 
           {/* RIGHT COLUMN */}
           <div style={{ flex: '0 0 calc(60% - 24px)', minWidth: 0 }}>
-            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+            <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--text)' }}>Decision History</h2>
+                <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>Decision History</h2>
                 <span style={{
                   background: 'var(--bg)', border: '1px solid var(--border)',
                   borderRadius: '999px', padding: '2px 10px', fontSize: '12px', color: 'var(--text-muted)',
@@ -546,7 +546,7 @@ export default function ProfilesPage() {
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: 500, fontSize: '14px', color: 'var(--text)' }}>
+                          <span style={{ fontWeight: 500, fontSize: '14px', color: 'var(--text-primary)' }}>
                             {row.strategy_name || 'Unknown strategy'}
                           </span>
                           <span style={{ fontSize: '12px', color: 'var(--text-muted)', flexShrink: 0 }}>

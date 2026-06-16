@@ -144,7 +144,7 @@ export default function SimulatePage() {
 
       {/* Page header */}
       <div style={{ marginBottom: 32 }}>
-        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>Population Simulation</h1>
+        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: 'var(--text-primary)' }}>Population Simulation</h1>
         <p style={{ margin: '6px 0 0', color: 'var(--text-muted)', fontSize: 14 }}>
           Run a strategy against thousands of customers, inspect per-customer decisions, and export a full audit trail.
         </p>
@@ -154,15 +154,15 @@ export default function SimulatePage() {
       <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 24, alignItems: 'start' }}>
 
         {/* LEFT: Config */}
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: 24 }}>
-          <h2 style={{ margin: '0 0 20px', fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>Simulation Setup</h2>
+        <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12, padding: 24 }}>
+          <h2 style={{ margin: '0 0 20px', fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>Simulation Setup</h2>
 
           {/* Strategy */}
           <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 6 }}>Strategy</label>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 6 }}>Strategy</label>
             <div style={{ position: 'relative' }}>
               <select value={strategyId} onChange={e => setStrategyId(e.target.value)}
-                style={{ width: '100%', padding: '8px 32px 8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 14, appearance: 'none', cursor: 'pointer' }}>
+                style={{ width: '100%', padding: '8px 32px 8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 14, appearance: 'none', cursor: 'pointer' }}>
                 {strategies.length === 0 && <option value="">No active strategies</option>}
                 {strategies.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
@@ -172,7 +172,7 @@ export default function SimulatePage() {
 
           {/* Population size */}
           <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 6 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 6 }}>
               Population Size: <strong>{populationSize.toLocaleString()}</strong>
             </label>
             <input type="range" min={100} max={10000} step={100} value={populationSize}
@@ -180,19 +180,19 @@ export default function SimulatePage() {
               style={{ width: '100%', marginBottom: 8, accentColor: 'var(--brand-accent)' }} />
             <input type="number" min={100} max={10000} value={populationSize}
               onChange={e => setPopulationSize(Math.min(10000, Math.max(100, Number(e.target.value))))}
-              style={{ width: '100%', padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 14 }} />
+              style={{ width: '100%', padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 14 }} />
           </div>
 
           {/* Data source */}
           <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 8 }}>Data Source</label>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 8 }}>Data Source</label>
             <div style={{ display: 'flex', gap: 8 }}>
               {[
                 { label: 'Synthetic', val: false, icon: <BarChart2 size={13} /> },
                 { label: 'Real Profiles', val: true, icon: <Database size={13} /> },
               ].map(opt => (
                 <button key={String(opt.val)} onClick={() => setUseRealProfiles(opt.val)}
-                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 12px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: `1px solid ${useRealProfiles === opt.val ? 'var(--brand-accent)' : 'var(--border)'}`, background: useRealProfiles === opt.val ? 'var(--brand-accent)' : 'var(--bg)', color: useRealProfiles === opt.val ? '#fff' : 'var(--text)' }}>
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 12px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: `1px solid ${useRealProfiles === opt.val ? 'var(--brand-accent)' : 'var(--border)'}`, background: useRealProfiles === opt.val ? 'var(--brand-accent)' : 'var(--bg)', color: useRealProfiles === opt.val ? '#fff' : 'var(--text-primary)' }}>
                   {opt.icon} {opt.label}
                 </button>
               ))}
@@ -203,7 +203,7 @@ export default function SimulatePage() {
           {!useRealProfiles && (
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>Seed Attributes</label>
+                <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Seed Attributes</label>
                 <button onClick={addAttr} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brand-accent)', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
                   <Plus size={12} /> Add
                 </button>
@@ -211,9 +211,9 @@ export default function SimulatePage() {
               {seedAttrs.map((attr, i) => (
                 <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
                   <input value={attr.key} onChange={e => updateAttr(i, 'key', e.target.value)} placeholder="key"
-                    style={{ flex: 1, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12 }} />
+                    style={{ flex: 1, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 12 }} />
                   <input value={attr.value} onChange={e => updateAttr(i, 'value', e.target.value)} placeholder="value"
-                    style={{ flex: 1, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12 }} />
+                    style={{ flex: 1, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 12 }} />
                   <button onClick={() => removeAttr(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
                     <Minus size={12} />
                   </button>
@@ -251,7 +251,7 @@ export default function SimulatePage() {
         {/* RIGHT: Results */}
         <div>
           {!results && !running && (
-            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: 48, textAlign: 'center', color: 'var(--text-muted)' }}>
+            <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12, padding: 48, textAlign: 'center', color: 'var(--text-muted)' }}>
               <BarChart2 size={40} style={{ opacity: 0.3, marginBottom: 12 }} />
               <p style={{ margin: 0, fontSize: 14 }}>Configure a strategy and click <strong>Run Simulation</strong> to see results.</p>
             </div>
@@ -261,11 +261,11 @@ export default function SimulatePage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
               {/* Audit banner */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderRadius: 10, background: 'var(--card)', border: '1px solid var(--border)', flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderRadius: 10, background: 'var(--bg-panel)', border: '1px solid var(--border)', flexWrap: 'wrap', gap: 8 }}>
                 <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)' }}>
                     <Shield size={13} color="var(--brand-accent)" />
-                    <strong style={{ color: 'var(--text)' }}>Run ID:</strong> {results.runId?.slice(0, 8).toUpperCase() ?? '—'}
+                    <strong style={{ color: 'var(--text-primary)' }}>Run ID:</strong> {results.runId?.slice(0, 8).toUpperCase() ?? '—'}
                   </span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)' }}>
                     <Clock size={13} />
@@ -278,11 +278,11 @@ export default function SimulatePage() {
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={exportCSV}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 7, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 7, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
                     <Download size={13} /> Export CSV
                   </button>
                   <button onClick={runSimulation}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 7, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 7, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
                     <RotateCcw size={13} /> Re-run
                   </button>
                 </div>
@@ -295,20 +295,20 @@ export default function SimulatePage() {
                   { label: 'Suppressed', count: results.suppressed,  pct: results.suppressedPct, color: '#ef4444', icon: <XCircle size={18} /> },
                   { label: 'No Match',   count: results.noMatch,     pct: results.noMatchPct,    color: '#6b7280', icon: <AlertCircle size={18} /> },
                 ].map(stat => (
-                  <div key={stat.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
+                  <div key={stat.label} style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: stat.color, marginBottom: 8 }}>
                       {stat.icon}
                       <span style={{ fontSize: 13, fontWeight: 500 }}>{stat.label}</span>
                     </div>
-                    <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text)' }}>{stat.count.toLocaleString()}</div>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)' }}>{stat.count.toLocaleString()}</div>
                     <div style={{ fontSize: 13, color: stat.color, fontWeight: 600 }}>{stat.pct.toFixed(1)}%</div>
                   </div>
                 ))}
               </div>
 
               {/* Stacked bar */}
-              <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 12 }}>Visual Breakdown</div>
+              <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>Visual Breakdown</div>
                 <div style={{ display: 'flex', height: 28, borderRadius: 8, overflow: 'hidden' }}>
                   {results.servedPct > 0     && <div title={`Served: ${results.servedPct.toFixed(1)}%`}     style={{ width: `${results.servedPct}%`,     background: 'var(--brand-accent)' }} />}
                   {results.suppressedPct > 0 && <div title={`Suppressed: ${results.suppressedPct.toFixed(1)}%`} style={{ width: `${results.suppressedPct}%`, background: '#ef4444' }} />}
@@ -326,8 +326,8 @@ export default function SimulatePage() {
 
               {/* Suppression analysis */}
               {results.suppressionBreakdown.length > 0 && (
-                <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 14 }}>Suppression Analysis</div>
+                <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 14 }}>Suppression Analysis</div>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border)' }}>
@@ -339,8 +339,8 @@ export default function SimulatePage() {
                     <tbody>
                       {results.suppressionBreakdown.map((row, i) => (
                         <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                          <td style={{ padding: '8px 8px', color: 'var(--text)' }}>{row.label ?? row.reason}</td>
-                          <td style={{ padding: '8px 8px', textAlign: 'right', color: 'var(--text)' }}>{row.count.toLocaleString()}</td>
+                          <td style={{ padding: '8px 8px', color: 'var(--text-primary)' }}>{row.label ?? row.reason}</td>
+                          <td style={{ padding: '8px 8px', textAlign: 'right', color: 'var(--text-primary)' }}>{row.count.toLocaleString()}</td>
                           <td style={{ padding: '8px 8px', textAlign: 'right', color: '#ef4444', fontWeight: 500 }}>{row.pct.toFixed(1)}%</td>
                         </tr>
                       ))}
@@ -351,14 +351,14 @@ export default function SimulatePage() {
 
               {/* Action distribution */}
               {results.actionBreakdown.length > 0 && (
-                <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 14 }}>Action Distribution</div>
+                <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 14 }}>Action Distribution</div>
                   {(() => {
                     const max = Math.max(...results.actionBreakdown.map(a => a.count), 1);
                     return results.actionBreakdown.map((a, i) => (
                       <div key={i} style={{ marginBottom: 12 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                          <span style={{ color: 'var(--text)' }}>{a.actionName || a.actionId}</span>
+                          <span style={{ color: 'var(--text-primary)' }}>{a.actionName || a.actionId}</span>
                           <span style={{ color: 'var(--text-muted)' }}>{a.count.toLocaleString()} ({a.pct.toFixed(1)}%)</span>
                         </div>
                         <div style={{ height: 8, borderRadius: 4, background: 'var(--border)' }}>
@@ -372,7 +372,7 @@ export default function SimulatePage() {
 
               {/* Projected revenue */}
               {results.projectedRevenue !== undefined && (
-                <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
                   <TrendingUp size={24} style={{ color: '#22c55e' }} />
                   <div>
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>Projected Revenue</div>
@@ -383,10 +383,10 @@ export default function SimulatePage() {
 
               {/* Per-customer trace */}
               {results.traceSample && results.traceSample.length > 0 && (
-                <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
+                <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Per-Customer Decision Trace</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Per-Customer Decision Trace</div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                         Showing {filteredTrace.length} of {results.traceSample.length} sampled customers · Full trace saved to audit log (Run {results.runId?.slice(0, 8).toUpperCase()})
                       </div>
@@ -399,7 +399,7 @@ export default function SimulatePage() {
                         </button>
                       ))}
                       <input value={traceSearch} onChange={e => setTraceSearch(e.target.value)} placeholder="Search customer / gate…"
-                        style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12, outline: 'none', width: 180 }} />
+                        style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 12, outline: 'none', width: 180 }} />
                     </div>
                   </div>
 
@@ -415,14 +415,14 @@ export default function SimulatePage() {
                       <tbody>
                         {filteredTrace.slice(0, 50).map((row, i) => (
                           <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                            <td style={{ padding: '7px 10px', fontFamily: 'monospace', color: 'var(--text)', whiteSpace: 'nowrap' }}>{row.customerId}</td>
+                            <td style={{ padding: '7px 10px', fontFamily: 'monospace', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{row.customerId}</td>
                             <td style={{ padding: '7px 10px', whiteSpace: 'nowrap' }}>
                               <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: row.outcome === 'PASS' ? '#dcfce7' : row.outcome === 'SUPPRESSED' ? '#fee2e2' : '#f3f4f6', color: OUTCOME_COLOUR[row.outcome] ?? '#6b7280' }}>
                                 {row.outcome === 'NO_MATCH' ? 'No Match' : row.outcome.charAt(0) + row.outcome.slice(1).toLowerCase()}
                               </span>
                             </td>
                             <td style={{ padding: '7px 10px', color: 'var(--text-muted)', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.gate}>{row.gate}</td>
-                            <td style={{ padding: '7px 10px', color: 'var(--text)', whiteSpace: 'nowrap' }}>{row.actionName ?? '—'}</td>
+                            <td style={{ padding: '7px 10px', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{row.actionName ?? '—'}</td>
                             <td style={{ padding: '7px 10px', color: 'var(--text-muted)' }}>{String(row.attributes.age ?? '—')}</td>
                             <td style={{ padding: '7px 10px', color: 'var(--text-muted)' }}>{String(row.attributes.credit_score ?? '—')}</td>
                           </tr>

@@ -127,7 +127,7 @@ function ModelModal({
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex',
         alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}
     >
-      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12,
+      <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12,
         width: '100%', maxWidth: 640, maxHeight: '90vh', overflowY: 'auto',
         boxShadow: '0 24px 60px rgba(0,0,0,0.18)' }}>
         {/* Header */}
@@ -153,7 +153,7 @@ function ModelModal({
             <input value={name} onChange={e => setName(e.target.value)}
               placeholder="e.g. Credit Card Propensity v2"
               style={{ width: '100%', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 7,
-                fontSize: 13, color: 'var(--text)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }} />
+                fontSize: 13, color: 'var(--text-primary)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }} />
           </div>
 
           {/* Description */}
@@ -164,7 +164,7 @@ function ModelModal({
             <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={2}
               placeholder="What customer behaviour does this model predict?"
               style={{ width: '100%', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 7,
-                fontSize: 13, color: 'var(--text)', background: 'var(--bg)', outline: 'none',
+                fontSize: 13, color: 'var(--text-primary)', background: 'var(--bg)', outline: 'none',
                 resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }} />
           </div>
 
@@ -195,7 +195,7 @@ function ModelModal({
               {MODEL_TYPES.map(mt => (
                 <button key={mt.value} onClick={() => setModelType(mt.value)}
                   style={{ padding: '10px 14px', border: `2px solid ${modelType === mt.value ? '#6366F1' : 'var(--border)'}`,
-                    borderRadius: 8, background: modelType === mt.value ? '#EEF2FF' : 'var(--card)',
+                    borderRadius: 8, background: modelType === mt.value ? '#EEF2FF' : 'var(--bg-panel)',
                     cursor: 'pointer', textAlign: 'left' }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: modelType === mt.value ? '#6366F1' : 'var(--text)' }}>
                     {mt.label}
@@ -219,7 +219,7 @@ function ModelModal({
                 <button key={f} onClick={() => toggleFeature(f)}
                   style={{ padding: '4px 10px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
                     border: `1px solid ${features.includes(f) ? '#6366F1' : 'var(--border)'}`,
-                    background: features.includes(f) ? '#EEF2FF' : 'var(--card)',
+                    background: features.includes(f) ? '#EEF2FF' : 'var(--bg-panel)',
                     color: features.includes(f) ? '#6366F1' : 'var(--text-muted)',
                     fontWeight: features.includes(f) ? 600 : 400 }}>
                   {features.includes(f) ? '✓ ' : ''}{f}
@@ -231,7 +231,7 @@ function ModelModal({
                 onKeyDown={e => e.key === 'Enter' && addCustom()}
                 placeholder="Add custom attribute…"
                 style={{ flex: 1, padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 6,
-                  fontSize: 12, color: 'var(--text)', background: 'var(--bg)', outline: 'none' }} />
+                  fontSize: 12, color: 'var(--text-primary)', background: 'var(--bg)', outline: 'none' }} />
               <button onClick={addCustom}
                 style={{ padding: '7px 14px', background: 'none', border: '1px solid var(--border)',
                   borderRadius: 6, fontSize: 12, cursor: 'pointer', color: 'var(--text-muted)' }}>
@@ -259,7 +259,7 @@ function ModelModal({
               <input type="number" value={auc} onChange={e => setAuc(Number(e.target.value))}
                 min={0} max={1} step={0.001}
                 style={{ width: '100%', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 7,
-                  fontSize: 13, color: 'var(--text)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }} />
+                  fontSize: 13, color: 'var(--text-primary)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }} />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -268,7 +268,7 @@ function ModelModal({
               <input type="number" value={lift} onChange={e => setLift(Number(e.target.value))}
                 min={1} max={10} step={0.1}
                 style={{ width: '100%', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 7,
-                  fontSize: 13, color: 'var(--text)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }} />
+                  fontSize: 13, color: 'var(--text-primary)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }} />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -276,7 +276,7 @@ function ModelModal({
               </label>
               <select value={status} onChange={e => setStatus(e.target.value)}
                 style={{ width: '100%', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 7,
-                  fontSize: 13, color: 'var(--text)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }}>
+                  fontSize: 13, color: 'var(--text-primary)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }}>
                 <option value="shadow">Shadow (monitor only)</option>
                 <option value="training">Training</option>
                 <option value="live">Live (active updates)</option>
@@ -369,7 +369,7 @@ function ModelCard({
   const propensities = history.map(h => h.propensity).filter(Boolean) as number[];
 
   return (
-    <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12,
+    <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12,
       overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
       {/* Top strip by status */}
       <div style={{ height: 3, background: sm.color }} />
@@ -379,7 +379,7 @@ function ModelCard({
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-              <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>{model.name}</span>
+              <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)' }}>{model.name}</span>
               <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20,
                 background: sm.bg, color: sm.color }}>
                 {sm.label}
@@ -433,7 +433,7 @@ function ModelCard({
             { label: 'Acceptance',  value: s ? (s.acceptanceRate * 100).toFixed(1) + '%' : '—' },
             { label: 'Propensity',  value: s?.currentPropensity != null ? s.currentPropensity.toFixed(3) : model.auc.toFixed(3), mono: true },
           ].map(({ label, value, mono, accent }) => (
-            <div key={label} style={{ background: 'var(--card)', padding: '8px 12px', textAlign: 'center' }}>
+            <div key={label} style={{ background: 'var(--bg-panel)', padding: '8px 12px', textAlign: 'center' }}>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>{label}</div>
               <div style={{ fontSize: 13, fontWeight: 700, fontFamily: mono ? 'monospace' : 'inherit',
                 color: accent ? '#059669' : 'var(--text)' }}>
@@ -538,7 +538,7 @@ function ModelCard({
                       <div style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', textTransform: 'capitalize', marginBottom: 6 }}>
                         {ch.channel}
                       </div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
                         {(ch.acceptanceRate * 100).toFixed(1)}%
                       </div>
                       <div style={{ fontSize: 11, color: '#9CA3AF' }}>
@@ -573,7 +573,7 @@ function ModelCard({
                     const oc = outcomeColors[r.outcome ?? ''] ?? outcomeColors.ignored;
                     return (
                       <div key={i} style={{ display: 'grid', gridTemplateColumns: '90px 80px 80px 1fr',
-                        gap: 12, padding: '7px 12px', background: 'var(--card)',
+                        gap: 12, padding: '7px 12px', background: 'var(--bg-panel)',
                         borderBottom: i < recentResponses.length - 1 ? '1px solid var(--border)' : 'none',
                         alignItems: 'center', fontSize: 12 }}>
                         <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20,
@@ -581,7 +581,7 @@ function ModelCard({
                           {r.outcome}
                         </span>
                         <span style={{ color: '#6B7280', textTransform: 'capitalize' }}>{r.channel ?? '—'}</span>
-                        <span style={{ fontFamily: 'monospace', color: 'var(--text)' }}>
+                        <span style={{ fontFamily: 'monospace', color: 'var(--text-primary)' }}>
                           {r.propensity != null ? r.propensity.toFixed(4) : '—'}
                         </span>
                         <span style={{ color: '#9CA3AF', fontSize: 11 }}>
@@ -650,7 +650,7 @@ export default function ModelsPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Adaptive Models</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Adaptive Models</h1>
           <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: '6px 0 0' }}>
             Propensity models per action — learn continuously from decision outcomes
           </p>
@@ -696,9 +696,9 @@ export default function ModelsPage() {
 
       {!loading && models.length === 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: '80px 24px', border: '1px solid var(--border)', borderRadius: 12, background: 'var(--card)' }}>
+          padding: '80px 24px', border: '1px solid var(--border)', borderRadius: 12, background: 'var(--bg-panel)' }}>
           <Brain size={56} color="#C7D2FE" style={{ marginBottom: 16 }} />
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', margin: '0 0 8px' }}>No models yet</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 8px' }}>No models yet</h2>
           <p style={{ fontSize: 14, color: 'var(--text-muted)', textAlign: 'center', maxWidth: 420, margin: '0 0 24px' }}>
             Create an adaptive model for each action you want to optimise. Assign features, pick an algorithm, then promote to Live when ready.
           </p>

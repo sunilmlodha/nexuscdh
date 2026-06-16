@@ -259,7 +259,7 @@ function EndpointCard({ ep }: { ep: Endpoint }) {
         <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: `${METHOD_COLORS[ep.method]}20`, color: METHOD_COLORS[ep.method], minWidth: 40, textAlign: 'center' }}>
           {ep.method}
         </span>
-        <code style={{ fontSize: 12, color: 'var(--text)', flex: 1, fontFamily: 'monospace' }}>{ep.path}</code>
+        <code style={{ fontSize: 12, color: 'var(--text-primary)', flex: 1, fontFamily: 'monospace' }}>{ep.path}</code>
         <span style={{ fontSize: 12, color: 'var(--text-muted)', flex: 2 }}>{ep.title}</span>
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
       </div>
@@ -284,7 +284,7 @@ function EndpointCard({ ep }: { ep: Endpoint }) {
               <textarea
                 value={editBody}
                 onChange={e => setEditBody(e.target.value)}
-                style={{ width: '100%', fontSize: 11, fontFamily: 'monospace', background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', color: 'var(--text)', minHeight: 140, resize: 'vertical', boxSizing: 'border-box' }}
+                style={{ width: '100%', fontSize: 11, fontFamily: 'monospace', background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', color: 'var(--text-primary)', minHeight: 140, resize: 'vertical', boxSizing: 'border-box' }}
               />
             </div>
           )}

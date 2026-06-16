@@ -77,7 +77,7 @@ export default function SeedPage() {
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
           <Database size={22} style={{ color: 'var(--accent)' }} />
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>Demo Data Seeder</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>Demo Data Seeder</h1>
         </div>
         <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
           Populate NexusCDH with realistic demo data — taxonomy, strategies, actions, audiences, customer profiles,
@@ -133,7 +133,7 @@ export default function SeedPage() {
             {wiping ? 'Resetting…' : 'Reset & Seed'}
           </button>
           <button onClick={fetchCounts} disabled={loading}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', border: '1px solid var(--border)', borderRadius: 8, background: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 13 }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', border: '1px solid var(--border)', borderRadius: 8, background: 'none', cursor: 'pointer', color: 'var(--text-primary)', fontSize: 13 }}>
             <RefreshCw size={13} />
           </button>
         </div>
@@ -168,7 +168,7 @@ export default function SeedPage() {
               { label: 'Run Decision', href: '/simulator' },
               { label: 'View Analytics', href: '/analytics' },
             ].map(({ label, href }) => (
-              <a key={href} href={href} style={{ fontSize: 12, padding: '6px 12px', border: '1px solid var(--border)', borderRadius: 6, textDecoration: 'none', color: 'var(--text)' }}>
+              <a key={href} href={href} style={{ fontSize: 12, padding: '6px 12px', border: '1px solid var(--border)', borderRadius: 6, textDecoration: 'none', color: 'var(--text-primary)' }}>
                 {label} →
               </a>
             ))}

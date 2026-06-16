@@ -422,8 +422,8 @@ function SimulationTab() {
                                   <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Suppression Breakdown</div>
                                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                                     {(((detail.results_snapshot as Record<string, unknown>).suppressionBreakdown) as Array<{ label?: string; reason: string; count: number; pct: number }>).map((s, i) => (
-                                      <div key={i} style={{ padding: '6px 12px', borderRadius: 8, background: 'var(--card)', border: '1px solid var(--border)', fontSize: 12 }}>
-                                        <span style={{ fontWeight: 600, color: 'var(--text)' }}>{s.label ?? s.reason}</span>
+                                      <div key={i} style={{ padding: '6px 12px', borderRadius: 8, background: 'var(--bg-panel)', border: '1px solid var(--border)', fontSize: 12 }}>
+                                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{s.label ?? s.reason}</span>
                                         <span style={{ color: '#ef4444', marginLeft: 8 }}>{s.count.toLocaleString()} ({s.pct.toFixed(1)}%)</span>
                                       </div>
                                     ))}
@@ -447,14 +447,14 @@ function SimulationTab() {
                                     <tbody>
                                       {(detail.customer_trace as Array<{ customerId: string; outcome: string; gate: string; actionName?: string }>).slice(0, 20).map((t, i) => (
                                         <tr key={i}>
-                                          <td style={{ padding: '6px 10px', fontFamily: 'monospace', color: 'var(--text)', borderBottom: '1px solid var(--border)' }}>{t.customerId}</td>
+                                          <td style={{ padding: '6px 10px', fontFamily: 'monospace', color: 'var(--text-primary)', borderBottom: '1px solid var(--border)' }}>{t.customerId}</td>
                                           <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--border)' }}>
                                             <span style={{ display: 'inline-block', padding: '1px 7px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: t.outcome === 'PASS' ? '#dcfce7' : t.outcome === 'SUPPRESSED' ? '#fee2e2' : '#f3f4f6', color: t.outcome === 'PASS' ? '#15803d' : t.outcome === 'SUPPRESSED' ? '#b91c1c' : '#6b7280' }}>
                                               {t.outcome === 'NO_MATCH' ? 'No Match' : t.outcome.charAt(0) + t.outcome.slice(1).toLowerCase()}
                                             </span>
                                           </td>
                                           <td style={{ padding: '6px 10px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>{t.gate}</td>
-                                          <td style={{ padding: '6px 10px', color: 'var(--text)', borderBottom: '1px solid var(--border)' }}>{t.actionName ?? '—'}</td>
+                                          <td style={{ padding: '6px 10px', color: 'var(--text-primary)', borderBottom: '1px solid var(--border)' }}>{t.actionName ?? '—'}</td>
                                         </tr>
                                       ))}
                                     </tbody>

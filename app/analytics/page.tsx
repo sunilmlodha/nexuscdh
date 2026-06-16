@@ -107,7 +107,7 @@ function KpiCard({
   return (
     <div
       style={{
-        background: 'var(--card)',
+        background: 'var(--bg-panel)',
         border: '1px solid var(--border)',
         borderRadius: 10,
         padding: '18px 20px',
@@ -142,7 +142,7 @@ function KpiCard({
           <Icon size={16} color={iconColor} />
         </div>
       </div>
-      <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--text)', lineHeight: 1 }}>
+      <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 }}>
         {value}
       </div>
     </div>
@@ -153,7 +153,7 @@ function KpiSkeleton() {
   return (
     <div
       style={{
-        background: 'var(--card)',
+        background: 'var(--bg-panel)',
         border: '1px solid var(--border)',
         borderRadius: 10,
         padding: '18px 20px',
@@ -231,7 +231,7 @@ export default function AnalyticsPage() {
             style={{
               fontSize: 26,
               fontWeight: 700,
-              color: 'var(--text)',
+              color: 'var(--text-primary)',
               margin: 0,
               lineHeight: 1.2,
             }}
@@ -248,7 +248,7 @@ export default function AnalyticsPage() {
           style={{
             display: 'flex',
             gap: 4,
-            background: 'var(--card)',
+            background: 'var(--bg-panel)',
             border: '1px solid var(--border)',
             borderRadius: 8,
             padding: 3,
@@ -355,7 +355,7 @@ export default function AnalyticsPage() {
         {/* ── Engagement Funnel ── */}
         <div
           style={{
-            background: 'var(--card)',
+            background: 'var(--bg-panel)',
             border: '1px solid var(--border)',
             borderRadius: 10,
             padding: '20px 24px',
@@ -365,7 +365,7 @@ export default function AnalyticsPage() {
             style={{
               fontSize: 15,
               fontWeight: 600,
-              color: 'var(--text)',
+              color: 'var(--text-primary)',
               margin: '0 0 18px',
             }}
           >
@@ -393,7 +393,7 @@ export default function AnalyticsPage() {
                         marginBottom: 5,
                       }}
                     >
-                      <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>
+                      <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500 }}>
                         {item.stage}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -442,7 +442,7 @@ export default function AnalyticsPage() {
         {/* ── Suppression Breakdown ── */}
         <div
           style={{
-            background: 'var(--card)',
+            background: 'var(--bg-panel)',
             border: '1px solid var(--border)',
             borderRadius: 10,
             padding: '20px 24px',
@@ -452,7 +452,7 @@ export default function AnalyticsPage() {
             style={{
               fontSize: 15,
               fontWeight: 600,
-              color: 'var(--text)',
+              color: 'var(--text-primary)',
               margin: '0 0 18px',
             }}
           >
@@ -475,7 +475,7 @@ export default function AnalyticsPage() {
                     <span
                       style={{
                         fontSize: 12,
-                        color: 'var(--text)',
+                        color: 'var(--text-primary)',
                         width: 90,
                         flexShrink: 0,
                         fontWeight: 500,
@@ -525,7 +525,7 @@ export default function AnalyticsPage() {
       {/* ── Strategy Performance Table ── */}
       <div
         style={{
-          background: 'var(--card)',
+          background: 'var(--bg-panel)',
           border: '1px solid var(--border)',
           borderRadius: 10,
           padding: '20px 24px',
@@ -534,7 +534,7 @@ export default function AnalyticsPage() {
         }}
       >
         <h2
-          style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', margin: '0 0 16px' }}
+          style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 16px' }}
         >
           Strategy Performance
         </h2>
@@ -590,7 +590,7 @@ export default function AnalyticsPage() {
                     <td
                       style={{
                         padding: '10px 12px',
-                        color: 'var(--text)',
+                        color: 'var(--text-primary)',
                         fontWeight: 500,
                         borderBottom: '1px solid var(--border)',
                       }}
@@ -663,7 +663,7 @@ export default function AnalyticsPage() {
       {/* ── Channel Performance Table ── */}
       <div
         style={{
-          background: 'var(--card)',
+          background: 'var(--bg-panel)',
           border: '1px solid var(--border)',
           borderRadius: 10,
           padding: '20px 24px',
@@ -672,7 +672,7 @@ export default function AnalyticsPage() {
         }}
       >
         <h2
-          style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', margin: '0 0 16px' }}
+          style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 16px' }}
         >
           Channel Performance
         </h2>
@@ -720,7 +720,7 @@ export default function AnalyticsPage() {
                     <td
                       style={{
                         padding: '10px 12px',
-                        color: 'var(--text)',
+                        color: 'var(--text-primary)',
                         fontWeight: 500,
                         borderBottom: '1px solid var(--border)',
                         textTransform: 'capitalize',
@@ -774,7 +774,7 @@ export default function AnalyticsPage() {
       {/* ── Daily Trend ── */}
       <div
         style={{
-          background: 'var(--card)',
+          background: 'var(--bg-panel)',
           border: '1px solid var(--border)',
           borderRadius: 10,
           padding: '20px 24px',
@@ -782,7 +782,7 @@ export default function AnalyticsPage() {
         }}
       >
         <h2
-          style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', margin: '0 0 20px' }}
+          style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 20px' }}
         >
           Daily Trend
         </h2>
@@ -925,7 +925,7 @@ export default function AnalyticsPage() {
       {/* ── Decision Latency ── */}
       <div
         style={{
-          background: 'var(--card)',
+          background: 'var(--bg-panel)',
           border: '1px solid var(--border)',
           borderRadius: 10,
           padding: '20px 24px',
@@ -933,7 +933,7 @@ export default function AnalyticsPage() {
         }}
       >
         <h2
-          style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', margin: '0 0 16px' }}
+          style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 16px' }}
         >
           Decision Latency
         </h2>
@@ -984,7 +984,7 @@ export default function AnalyticsPage() {
                   style={{
                     fontSize: 22,
                     fontWeight: 700,
-                    color: 'var(--text)',
+                    color: 'var(--text-primary)',
                     lineHeight: 1,
                   }}
                 >

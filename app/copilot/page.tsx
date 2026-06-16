@@ -268,8 +268,8 @@ export default function CopilotPage() {
               style={{
                 display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px',
                 borderRadius: 8, border: `1px solid ${tool === t.id ? '#7c3aed' : 'var(--border)'}`,
-                background: tool === t.id ? '#f5f3ff' : 'var(--card)',
-                color: tool === t.id ? '#7c3aed' : 'var(--text)',
+                background: tool === t.id ? '#f5f3ff' : 'var(--bg-panel)',
+                color: tool === t.id ? '#7c3aed' : 'var(--text-primary)',
                 fontWeight: tool === t.id ? 600 : 400,
                 fontSize: 13, cursor: 'pointer', textAlign: 'left',
                 transition: 'all 0.15s',
@@ -286,7 +286,7 @@ export default function CopilotPage() {
         </div>
 
         {/* Chat area */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
           {/* Tool description bar */}
           <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg)', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
             <span style={{ color: '#7c3aed' }}>{activeTool.icon}</span>
@@ -313,7 +313,7 @@ export default function CopilotPage() {
                   maxWidth: '85%', padding: '10px 14px', borderRadius: 10,
                   background: msg.role === 'user' ? '#7c3aed' : 'var(--bg)',
                   border: msg.role === 'user' ? 'none' : '1px solid var(--border)',
-                  color: msg.role === 'user' ? '#fff' : 'var(--text)',
+                  color: msg.role === 'user' ? '#fff' : 'var(--text-primary)',
                   fontSize: 13,
                 }}>
                   {msg.role === 'user' ? msg.content : <AssistantMessage msg={msg} />}
@@ -346,7 +346,7 @@ export default function CopilotPage() {
               placeholder={activeTool.placeholder}
               style={{
                 flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)',
-                background: 'var(--bg)', color: 'var(--text)', fontSize: 13, resize: 'none',
+                background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 13, resize: 'none',
                 minHeight: 56, maxHeight: 140, lineHeight: 1.5, fontFamily: 'inherit',
               }}
             />

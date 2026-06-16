@@ -169,7 +169,7 @@ export default function CARPage() {
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
           <Database size={22} style={{ color: 'var(--accent)' }} />
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>Customer Attribute Repository</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>Customer Attribute Repository</h1>
         </div>
         <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
           The CAR is the central store of all customer attributes used by the decision engine for eligibility evaluation,
@@ -189,7 +189,7 @@ export default function CARPage() {
               <Icon size={16} style={{ color: 'var(--accent)' }} />
             </div>
             <div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>{value}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>{value}</div>
               <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{label}</div>
             </div>
           </div>
@@ -216,9 +216,9 @@ export default function CARPage() {
             <div style={{ position: 'relative', flex: 1, maxWidth: 340 }}>
               <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by customer ID…"
-                style={{ width: '100%', paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)', fontSize: 13 }} />
+                style={{ width: '100%', paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 13 }} />
             </div>
-            <button onClick={loadProfiles} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1px solid var(--border)', borderRadius: 6, background: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 13 }}>
+            <button onClick={loadProfiles} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1px solid var(--border)', borderRadius: 6, background: 'none', cursor: 'pointer', color: 'var(--text-primary)', fontSize: 13 }}>
               <RefreshCw size={13} /> Refresh
             </button>
             <button onClick={() => setTab('ingest')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 6, background: 'var(--accent)', color: 'white', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
@@ -347,7 +347,7 @@ export default function CARPage() {
                     style={{ flex: 1, padding: '12px', borderRadius: 8, cursor: 'pointer', fontWeight: ingestMode === m ? 700 : 400,
                       border: ingestMode === m ? '2px solid var(--accent)' : '2px solid var(--border)',
                       background: ingestMode === m ? 'rgba(var(--accent-rgb),0.05)' : 'var(--bg)',
-                      color: ingestMode === m ? 'var(--accent)' : 'var(--text)', fontSize: 13 }}>
+                      color: ingestMode === m ? 'var(--accent)' : 'var(--text-primary)', fontSize: 13 }}>
                     {m === 'csv' ? '📄 CSV Upload' : '⚡ JSON / API'}
                   </button>
                 ))}
@@ -358,10 +358,10 @@ export default function CARPage() {
               <div className="card" style={{ padding: 20 }}>
                 <div style={{ fontWeight: 600, marginBottom: 10 }}>CSV Upload</div>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                  <button onClick={downloadSampleCSV} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', border: '1px solid var(--border)', borderRadius: 6, background: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text)' }}>
+                  <button onClick={downloadSampleCSV} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', border: '1px solid var(--border)', borderRadius: 6, background: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-primary)' }}>
                     <Download size={12} /> Sample CSV
                   </button>
-                  <button onClick={() => fileRef.current?.click()} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', border: '1px solid var(--border)', borderRadius: 6, background: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text)' }}>
+                  <button onClick={() => fileRef.current?.click()} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', border: '1px solid var(--border)', borderRadius: 6, background: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-primary)' }}>
                     <Upload size={12} /> Browse File
                   </button>
                   <input ref={fileRef} type="file" accept=".csv,.txt" style={{ display: 'none' }}
@@ -372,7 +372,7 @@ export default function CARPage() {
                 </div>
                 <textarea value={csvText} onChange={e => previewCSV(e.target.value)}
                   placeholder={`Paste CSV here, or use the first row as column headers:\n${SAMPLE_CSV.split('\n')[0]}`}
-                  style={{ width: '100%', height: 160, padding: 10, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-secondary)', color: 'var(--text)', fontSize: 11, fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }} />
+                  style={{ width: '100%', height: 160, padding: 10, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: 11, fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }} />
                 {csvPreview.length > 0 && (
                   <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted)' }}>
                     ✓ {csvPreview.length} row{csvPreview.length !== 1 ? 's' : ''} parsed
@@ -392,7 +392,7 @@ export default function CARPage() {
                   Paste a single profile object or an array of profiles.
                 </div>
                 <textarea value={manualJson} onChange={e => setManualJson(e.target.value)}
-                  style={{ width: '100%', height: 140, padding: 10, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-secondary)', color: 'var(--text)', fontSize: 12, fontFamily: 'monospace', resize: 'none', boxSizing: 'border-box' }} />
+                  style={{ width: '100%', height: 140, padding: 10, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: 12, fontFamily: 'monospace', resize: 'none', boxSizing: 'border-box' }} />
                 <button onClick={ingestManual} disabled={ingestLoading}
                   style={{ marginTop: 12, width: '100%', padding: '10px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
                   {ingestLoading ? 'Ingesting…' : 'Ingest Profile(s)'}
@@ -454,7 +454,7 @@ export default function CARPage() {
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: body ? 6 : 0 }}>{desc}</div>
                 {body && (
-                  <pre style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px', fontSize: 11, fontFamily: 'monospace', margin: 0, overflowX: 'auto', color: 'var(--text)' }}>
+                  <pre style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px', fontSize: 11, fontFamily: 'monospace', margin: 0, overflowX: 'auto', color: 'var(--text-primary)' }}>
                     {body}
                   </pre>
                 )}

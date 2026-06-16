@@ -150,7 +150,7 @@ export default function DataflowPage() {
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
           <Activity size={22} style={{ color: 'var(--accent)' }} />
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>Decision Dataflow</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>Decision Dataflow</h1>
         </div>
         <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
           End-to-end visualisation of how a customer event flows through NexusCDH — from inbound signal to Next-Best-Action delivery and outcome learning.
@@ -176,7 +176,7 @@ export default function DataflowPage() {
                 <div style={{ width: 40, height: 40, borderRadius: '50%', background: selected === s.id ? s.color : 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${s.color}` }}>
                   <s.icon size={18} style={{ color: selected === s.id ? 'white' : s.color }} />
                 </div>
-                <div style={{ fontSize: 10, fontWeight: 700, textAlign: 'center', color: selected === s.id ? s.color : 'var(--text)', lineHeight: 1.3, whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, textAlign: 'center', color: selected === s.id ? s.color : 'var(--text-primary)', lineHeight: 1.3, whiteSpace: 'nowrap' }}>
                   {s.label}
                 </div>
                 <div style={{ fontSize: 9, color: 'var(--text-muted)', textAlign: 'center', whiteSpace: 'nowrap' }}>
@@ -204,17 +204,17 @@ export default function DataflowPage() {
                 <step.icon size={22} style={{ color: step.color }} />
               </div>
               <div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>{step.label}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>{step.label}</div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{step.sublabel}</div>
               </div>
             </div>
-            <p style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.7, marginBottom: 20 }}>{step.description}</p>
+            <p style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.7, marginBottom: 20 }}>{step.description}</p>
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontWeight: 600, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8 }}>Key behaviours</div>
               {step.keyPoints.map((p, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
                   <span style={{ color: step.color, fontWeight: 700, flexShrink: 0, marginTop: 1 }}>•</span>
-                  <span style={{ fontSize: 13, color: 'var(--text)' }}>{p}</span>
+                  <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{p}</span>
                 </div>
               ))}
             </div>
@@ -227,7 +227,7 @@ export default function DataflowPage() {
           {/* Right */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="card" style={{ padding: 20 }}>
-              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 12, color: 'var(--text)' }}>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 12, color: 'var(--text-primary)' }}>
                 Inputs to this step
               </div>
               {step.inputs.map((inp, i) => (
@@ -238,7 +238,7 @@ export default function DataflowPage() {
               ))}
             </div>
             <div className="card" style={{ padding: 20 }}>
-              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 12, color: 'var(--text)' }}>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 12, color: 'var(--text-primary)' }}>
                 Outputs from this step
               </div>
               {step.outputs.map((out, i) => (
@@ -266,7 +266,7 @@ export default function DataflowPage() {
             { icon: Radio, label: 'Channels', desc: 'Email, SMS, push, web, paid', color: '#00838f', page: '/channels' },
             { icon: FlaskConical, label: 'Experiments', desc: 'Champion / Challenger A/B', color: '#6c63ff', page: '/experiments' },
           ].map(({ icon: Icon, label, desc, color, page }) => (
-            <a key={label} href={page} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: '1px solid var(--border)', borderRadius: 8, textDecoration: 'none', color: 'var(--text)', transition: 'background 0.1s' }}
+            <a key={label} href={page} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: '1px solid var(--border)', borderRadius: 8, textDecoration: 'none', color: 'var(--text-primary)', transition: 'background 0.1s' }}
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-secondary)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
               <div style={{ width: 32, height: 32, borderRadius: 8, background: `${color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
