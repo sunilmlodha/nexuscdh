@@ -1,24 +1,40 @@
 /**
  * POST /api/simulate
  *
- * Population-level simulation — run a strategy against N synthetic or
- * real customer profiles and return aggregate statistics BEFORE go-live.
+ * Population-level simulation with full per-customer trace and audit log.
+ * Equivalent to Pega CDH Strategy Simulation + Strategy Result Viewer.
  *
- * This closes the gap vs Pega's "Strategy Simulation" feature which lets
- * marketers see: "For 10,000 customers, what % will be served? Suppressed
- * by fatigue? Blocked by eligibility?" before activating a strategy.
+ * Returns aggregate stats, per-customer trace sample, and a runId that
+ * can be used to retrieve the full audit record.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import {
   fetchStrategies, fetchActions, fetchPolicies, fetchCustomerProfiles,
-  IS_CONFIGURED, DBStrategy, DBAction, DBContactPolicy,
+  IS_CONFIGURED, serviceSupabase,
+  DBStrategy, DBAction, DBContactPolicy,
 } from '@/lib/supabase';
+import type { CustomerTrace } from '@/types/simulate';
 
 interface SimCustomer {
   customerId: string;
   attributes: Record<string, unknown>;
 }
+
+const GATE_LABELS: Record<string, string> = {
+  consent:           'Consent',
+  inactive_strategy: 'Strategy Status',
+  not_started:       'Date Window',
+  ended:             'Date Window',
+  daily_limit:       'Daily Contact Limit',
+  weekly_limit:      'Weekly Contact Limit',
+  monthly_limit:     'Monthly Contact Limit',
+  eligibility_failed:'Eligibility Rules',
+  suppression_rule:  'Suppression Rule',
+  no_active_actions: 'No Active Actions',
+  pass:              'All Gates Passed',
+};
 
 function evaluateForSim(
   strategy: DBStrategy,
@@ -26,26 +42,27 @@ function evaluateForSim(
   actions: DBAction[],
   car: Record<string, unknown>,
   contactCounts: { today: number; week: number; month: number }
-): { outcome: 'PASS' | 'SUPPRESSED' | 'NOT_APPLICABLE'; reason: string; actionId?: string } {
+): { outcome: 'PASS' | 'SUPPRESSED' | 'NOT_APPLICABLE'; reason: string; actionId?: string; gate: string } {
+
   if (car['consentGiven'] === false)
-    return { outcome: 'SUPPRESSED', reason: 'consent' };
+    return { outcome: 'SUPPRESSED', reason: 'consent', gate: 'Consent' };
 
   if (strategy.status !== 'active')
-    return { outcome: 'NOT_APPLICABLE', reason: 'inactive_strategy' };
+    return { outcome: 'NOT_APPLICABLE', reason: 'inactive_strategy', gate: 'Strategy Status' };
 
   const now = new Date();
   if (strategy.start_date && new Date(strategy.start_date) > now)
-    return { outcome: 'NOT_APPLICABLE', reason: 'not_started' };
+    return { outcome: 'NOT_APPLICABLE', reason: 'not_started', gate: 'Date Window' };
   if (strategy.end_date && new Date(strategy.end_date) < now)
-    return { outcome: 'NOT_APPLICABLE', reason: 'ended' };
+    return { outcome: 'NOT_APPLICABLE', reason: 'ended', gate: 'Date Window' };
 
   const maxDay   = policy?.max_per_day   ?? 2;
   const maxWeek  = policy?.max_per_week  ?? 5;
   const maxMonth = policy?.max_per_month ?? 15;
 
-  if (contactCounts.today >= maxDay)   return { outcome: 'SUPPRESSED', reason: 'daily_limit' };
-  if (contactCounts.week >= maxWeek)   return { outcome: 'SUPPRESSED', reason: 'weekly_limit' };
-  if (contactCounts.month >= maxMonth) return { outcome: 'SUPPRESSED', reason: 'monthly_limit' };
+  if (contactCounts.today >= maxDay)   return { outcome: 'SUPPRESSED', reason: 'daily_limit',   gate: 'Daily Contact Limit' };
+  if (contactCounts.week >= maxWeek)   return { outcome: 'SUPPRESSED', reason: 'weekly_limit',  gate: 'Weekly Contact Limit' };
+  if (contactCounts.month >= maxMonth) return { outcome: 'SUPPRESSED', reason: 'monthly_limit', gate: 'Monthly Contact Limit' };
 
   if (strategy.eligibility_rules?.length) {
     for (const rule of strategy.eligibility_rules) {
@@ -64,7 +81,8 @@ function evaluateForSim(
         case 'NOT IN': passes = !rule.value.split(',').map(v => v.trim()).includes(String(carVal)); break;
         default:       passes = true;
       }
-      if (!passes) return { outcome: 'NOT_APPLICABLE', reason: 'eligibility_failed' };
+      if (!passes)
+        return { outcome: 'NOT_APPLICABLE', reason: 'eligibility_failed', gate: `Eligibility: ${rule.attribute} ${rule.op} ${rule.value}` };
     }
   }
 
@@ -85,16 +103,18 @@ function evaluateForSim(
           case '>':  fires = !isNaN(carNum) && carNum > numVal; break;
           case '<':  fires = !isNaN(carNum) && carNum < numVal; break;
         }
-        if (fires) return { outcome: 'SUPPRESSED', reason: 'suppression_rule' };
+        if (fires)
+          return { outcome: 'SUPPRESSED', reason: 'suppression_rule', gate: `Suppression: ${rule}` };
       }
     }
   }
 
   const eligible = actions.filter(a => strategy.action_ids.includes(a.id) && a.status === 'active');
-  if (!eligible.length) return { outcome: 'NOT_APPLICABLE', reason: 'no_active_actions' };
+  if (!eligible.length)
+    return { outcome: 'NOT_APPLICABLE', reason: 'no_active_actions', gate: 'No Active Actions' };
 
   const best = [...eligible].sort((a, b) => b.base_propensity - a.base_propensity)[0];
-  return { outcome: 'PASS', reason: 'pass', actionId: best.id };
+  return { outcome: 'PASS', reason: 'pass', gate: 'All Gates Passed', actionId: best.id };
 }
 
 function generateSyntheticCustomers(count: number, seedAttributes: Record<string, unknown>): SimCustomer[] {
@@ -103,7 +123,7 @@ function generateSyntheticCustomers(count: number, seedAttributes: Record<string
     customers.push({
       customerId: `sim-${i.toString().padStart(6, '0')}`,
       attributes: {
-        consentGiven: Math.random() > 0.1, // 90% have consent
+        consentGiven: Math.random() > 0.1,
         age: 20 + Math.floor(Math.random() * 55),
         tenure_months: Math.floor(Math.random() * 120),
         product_count: 1 + Math.floor(Math.random() * 6),
@@ -117,7 +137,6 @@ function generateSyntheticCustomers(count: number, seedAttributes: Record<string
 
 export async function POST(req: NextRequest) {
   const start = Date.now();
-
   if (!IS_CONFIGURED) return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 });
 
   let body: {
@@ -165,22 +184,34 @@ export async function POST(req: NextRequest) {
     population = generateSyntheticCustomers(cappedSize, seedAttributes);
   }
 
-  // Run simulation (no DB writes — read-only)
+  // ── Run simulation — collect full per-customer trace ─────────────────────
   const suppressionBreakdown: Record<string, number> = {};
   const actionBreakdown: Record<string, number> = {};
   let served = 0, suppressed = 0, noMatch = 0;
+  const fullTrace: CustomerTrace[] = [];
 
   for (const customer of population) {
     const car = { ...customer.attributes, customerId: customer.customerId };
-    // Simulate zero prior contacts (clean slate for simulation)
     const result = evaluateForSim(strategy, policy, actions, car, { today: 0, week: 0, month: 0 });
+
+    const actionName = result.actionId
+      ? (actions.find(a => a.id === result.actionId)?.name ?? result.actionId)
+      : undefined;
+
+    const traceEntry: CustomerTrace = {
+      customerId:  customer.customerId,
+      outcome:     result.outcome === 'PASS' ? 'PASS' : result.outcome === 'SUPPRESSED' ? 'SUPPRESSED' : 'NO_MATCH',
+      gate:        result.gate,
+      reason:      result.reason,
+      actionId:    result.actionId,
+      actionName,
+      attributes:  customer.attributes,
+    };
+    fullTrace.push(traceEntry);
 
     if (result.outcome === 'PASS') {
       served++;
-      if (result.actionId) {
-        const actionName = actions.find(a => a.id === result.actionId)?.name ?? result.actionId;
-        actionBreakdown[actionName] = (actionBreakdown[actionName] ?? 0) + 1;
-      }
+      if (actionName) actionBreakdown[actionName] = (actionBreakdown[actionName] ?? 0) + 1;
     } else if (result.outcome === 'SUPPRESSED') {
       suppressed++;
       suppressionBreakdown[result.reason] = (suppressionBreakdown[result.reason] ?? 0) + 1;
@@ -191,9 +222,11 @@ export async function POST(req: NextRequest) {
   }
 
   const total = population.length;
+  const latencyMs = Date.now() - start;
 
   const suppressionBreakdownArr = Object.entries(suppressionBreakdown).map(([reason, count]) => ({
     reason,
+    label: GATE_LABELS[reason] ?? reason,
     count,
     pct: Math.round((count / total) * 1000) / 10,
   }));
@@ -213,7 +246,44 @@ export async function POST(req: NextRequest) {
     return sum + count * (action?.expected_value ?? 0);
   }, 0);
 
+  // ── Persist audit record ─────────────────────────────────────────────────
+  const runId = randomUUID();
+  if (serviceSupabase) {
+    await serviceSupabase.from('simulation_runs').insert({
+      id:               runId,
+      tenant_id:        tenantId,
+      strategy_id:      strategyId,
+      strategy_name:    strategy.name,
+      population_size:  total,
+      source:           useRealProfiles ? 'real' : 'synthetic',
+      served,
+      suppressed,
+      no_match:         noMatch,
+      serve_pct:        Math.round((served / total) * 1000) / 10,
+      projected_revenue: projectedRevenue,
+      latency_ms:       latencyMs,
+      seed_attributes:  seedAttributes,
+      results_snapshot: {
+        suppressionBreakdown: suppressionBreakdownArr,
+        actionBreakdown: actionBreakdownArr,
+      },
+      customer_trace: fullTrace,   // full trace stored in DB
+    }).then(({ error }) => {
+      if (error && !error.message?.includes('does not exist')) {
+        console.error('simulation_runs insert error:', error.message);
+      }
+    });
+  }
+
+  // Return a sample of 100 trace rows — pass/suppressed/noMatch represented proportionally
+  const traceSample = [
+    ...fullTrace.filter(t => t.outcome === 'PASS').slice(0, 34),
+    ...fullTrace.filter(t => t.outcome === 'SUPPRESSED').slice(0, 34),
+    ...fullTrace.filter(t => t.outcome === 'NO_MATCH').slice(0, 32),
+  ].slice(0, 100);
+
   return NextResponse.json({
+    runId,
     strategyId,
     strategyName:    strategy.name,
     totalSimulated:  total,
@@ -227,6 +297,34 @@ export async function POST(req: NextRequest) {
     suppressionBreakdown: suppressionBreakdownArr,
     actionBreakdown:      actionBreakdownArr,
     projectedRevenue,
-    latencyMs: Date.now() - start,
+    latencyMs,
+    traceSample,   // per-customer detail for transparency panel
+    auditedAt:     new Date().toISOString(),
   });
+}
+
+// GET — retrieve a past simulation run by runId
+export async function GET(req: NextRequest) {
+  if (!IS_CONFIGURED || !serviceSupabase)
+    return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 });
+
+  const runId   = req.nextUrl.searchParams.get('runId');
+  const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'f0000000-0000-4000-a000-000000000001';
+
+  if (runId) {
+    const { data, error } = await serviceSupabase
+      .from('simulation_runs').select('*')
+      .eq('id', runId).eq('tenant_id', tenantId).single();
+    if (error || !data) return NextResponse.json({ error: 'Run not found' }, { status: 404 });
+    return NextResponse.json({ run: data });
+  }
+
+  // List recent runs
+  const { data } = await serviceSupabase
+    .from('simulation_runs').select('id,strategy_name,population_size,source,served,suppressed,no_match,serve_pct,projected_revenue,latency_ms,created_at')
+    .eq('tenant_id', tenantId)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  return NextResponse.json({ runs: data ?? [] });
 }
