@@ -18,27 +18,11 @@ import {
   IS_CONFIGURED,
   DBStrategy, DBAction, DBContactPolicy,
 } from '@/lib/supabase';
+import type { PriorityBreakdown } from '@/lib/arbitration';
 import {
-  runEngagementPolicies, rankActions,
-  type RuleClause, type BusinessLever, type EngagementPolicyResult, type PriorityBreakdown,
-} from '@/lib/arbitration';
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface CAR {
-  customerId: string;
-  consentGiven: boolean;
-  [key: string]: unknown;
-}
-
-interface PolicyResult {
-  outcome: 'NOT_APPLICABLE' | 'SUPPRESSED' | 'PASS';
-  reason: string;
-  actionIds?: string[];
-  maxPerDay?: number;
-  maxPerWeek?: number;
-  engagementPolicy?: EngagementPolicyResult;
-}
+  evaluateStrategy, arbitrate, translateSuppression, carFromAttributes,
+  type CAR,
+} from '@/lib/decision-engine';
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
@@ -57,154 +41,6 @@ async function checkAuth(req: NextRequest, tenantId: string): Promise<boolean> {
   }
   const keyPrefix = apiKey.substring(0, 12);
   return validateApiKey(keyPrefix, apiKey, tenantId);
-}
-
-// ── Core decision functions ───────────────────────────────────────────────────
-
-function evaluateStrategy(
-  strategy: DBStrategy,
-  policy: DBContactPolicy | null,
-  actions: DBAction[],
-  car: CAR,
-  contactCounts: { today: number; week: number; month: number }
-): PolicyResult {
-  // 1. Consent gate
-  if (!car.consentGiven) {
-    return { outcome: 'SUPPRESSED', reason: 'Consent not given (GDPR gate)' };
-  }
-
-  // 2. Strategy status gate
-  if (strategy.status !== 'active') {
-    return { outcome: 'NOT_APPLICABLE', reason: `Strategy is ${strategy.status}` };
-  }
-
-  // 3. Date range gate
-  const now = new Date();
-  if (strategy.start_date && new Date(strategy.start_date) > now) {
-    return { outcome: 'NOT_APPLICABLE', reason: 'Strategy has not started yet' };
-  }
-  if (strategy.end_date && new Date(strategy.end_date) < now) {
-    return { outcome: 'NOT_APPLICABLE', reason: 'Strategy has ended' };
-  }
-
-  // 4. Contact frequency limits
-  const maxDay   = policy?.max_per_day   ?? 2;
-  const maxWeek  = policy?.max_per_week  ?? 5;
-  const maxMonth = policy?.max_per_month ?? 15;
-
-  if (contactCounts.today >= maxDay)
-    return { outcome: 'SUPPRESSED', reason: `Daily contact limit reached (max ${maxDay}/day)` };
-  if (contactCounts.week >= maxWeek)
-    return { outcome: 'SUPPRESSED', reason: `Weekly contact limit reached (max ${maxWeek}/week)` };
-  if (contactCounts.month >= maxMonth)
-    return { outcome: 'SUPPRESSED', reason: `Monthly contact limit reached (max ${maxMonth}/month)` };
-
-  // 5. Policy suppression rules
-  if (policy?.suppression_rules) {
-    for (const rule of policy.suppression_rules) {
-      const match = rule.match(/^(\w+)\s*(=|!=|>=|<=|>|<)\s*"?([^"]+)"?$/);
-      if (match) {
-        const [, attr, op, val] = match;
-        const carVal = car[attr];
-        const numVal = parseFloat(val);
-        const carNum = typeof carVal === 'number' ? carVal : parseFloat(String(carVal));
-        let fires = false;
-        switch (op) {
-          case '=':  fires = String(carVal) === val; break;
-          case '!=': fires = String(carVal) !== val; break;
-          case '>=': fires = !isNaN(carNum) && carNum >= numVal; break;
-          case '<=': fires = !isNaN(carNum) && carNum <= numVal; break;
-          case '>':  fires = !isNaN(carNum) && carNum > numVal; break;
-          case '<':  fires = !isNaN(carNum) && carNum < numVal; break;
-        }
-        if (fires) return { outcome: 'SUPPRESSED', reason: `Suppression rule fired: ${rule}` };
-      }
-    }
-  }
-
-  // 6. Active actions filter
-  const eligibleActions = actions.filter(
-    a => strategy.action_ids.includes(a.id) && a.status === 'active'
-  );
-  if (eligibleActions.length === 0) {
-    return { outcome: 'NOT_APPLICABLE', reason: 'No active actions configured on this strategy' };
-  }
-
-  // 7. Engagement policies — Eligibility → Applicability → Suitability (Pega CDH)
-  const engagementPolicy = runEngagementPolicies(car, {
-    eligibility_rules:   strategy.eligibility_rules as RuleClause[] | undefined,
-    applicability_rules: strategy.applicability_rules as RuleClause[] | undefined,
-    suitability_rules:   strategy.suitability_rules as RuleClause[] | undefined,
-  });
-
-  if (!engagementPolicy.passed) {
-    const failed = engagementPolicy.layers.find(l => !l.passed);
-    const r = failed?.failedRule;
-    return {
-      outcome: 'NOT_APPLICABLE',
-      reason: `${engagementPolicy.failedLayer} not met${r ? `: ${r.attribute} ${r.op} ${r.value}` : ''}`,
-      engagementPolicy,
-    };
-  }
-
-  return {
-    outcome: 'PASS',
-    reason: 'All gates passed',
-    actionIds: eligibleActions.map(a => a.id),
-    maxPerDay: maxDay,
-    maxPerWeek: maxWeek,
-    engagementPolicy,
-  };
-}
-
-interface ArbitrationOutcome {
-  winner: DBAction | null;
-  breakdown: PriorityBreakdown | null;
-  ranked: Array<{ action: DBAction; breakdown: PriorityBreakdown }>;
-}
-
-/**
- * Arbitrate via Pega's Priority = P × C × V × L.
- * `random_ab` overrides ranking with a random pick (for explicit A/B testing),
- * but the full P×C×V×L breakdown is still computed for explainability.
- */
-function arbitrate(
-  result: PolicyResult,
-  actions: DBAction[],
-  strategy: DBStrategy,
-  car: CAR,
-  minPropensity = 0
-): ArbitrationOutcome {
-  if (result.outcome !== 'PASS' || !result.actionIds?.length) {
-    return { winner: null, breakdown: null, ranked: [] };
-  }
-
-  const eligible = actions.filter(a => result.actionIds!.includes(a.id));
-  const { winner, ranked } = rankActions(eligible as DBAction[], car, {
-    contextWeight: strategy.context_weight ?? 1,
-    levers: (strategy.business_levers as BusinessLever[]) ?? [],
-    minPropensity,
-  });
-
-  if (!ranked.length) return { winner: null, breakdown: null, ranked: [] };
-
-  if (strategy.arbitration === 'random_ab') {
-    const pick = ranked[Math.floor(Math.random() * ranked.length)];
-    return { winner: pick.action, breakdown: pick.breakdown, ranked };
-  }
-
-  return { winner: winner?.action ?? null, breakdown: winner?.breakdown ?? null, ranked };
-}
-
-function translateSuppression(reason: string): { plain: string; category: string } {
-  if (/daily contact limit/i.test(reason))     return { plain: 'Daily contact limit reached',              category: 'fatigue'     };
-  if (/weekly contact limit/i.test(reason))    return { plain: 'Weekly contact limit reached',             category: 'fatigue'     };
-  if (/monthly contact limit/i.test(reason))   return { plain: 'Monthly contact limit reached',            category: 'fatigue'     };
-  if (/consent/i.test(reason))                 return { plain: 'Customer has not given marketing consent', category: 'consent'     };
-  if (/suppression rule/i.test(reason))        return { plain: 'Customer matched a suppression condition', category: 'suppression' };
-  if (/no active actions/i.test(reason))       return { plain: 'No actions configured for this strategy', category: 'no_match'   };
-  if (/eligibility not met/i.test(reason))     return { plain: 'Customer does not meet eligibility criteria', category: 'eligibility' };
-  return { plain: reason, category: 'unknown' };
 }
 
 // ── POST: Single-strategy decision ───────────────────────────────────────────
