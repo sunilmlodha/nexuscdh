@@ -10,6 +10,7 @@ const INDUSTRIES = ['banking','insurance','retail','telecoms','healthcare','auto
 type Industry = typeof INDUSTRIES[number];
 
 const JOURNEY_STATUSES = ['draft','active','paused','archived'];
+const STAGE_CHANNELS = ['email','sms','push','in_app','outbound_call','direct_mail'];
 
 const STATUS_COLORS: Record<string,string> = {
   draft:    'var(--text-muted)',
@@ -42,11 +43,16 @@ interface JourneyStage {
   name: string;
   day: number;
   channel: string;
+  action_id?: string;
   action_name: string;
+  treatment_id?: string;
   condition: string;
   wait_days: number;
   exit_on: string[];
 }
+
+interface ActionRef { id: string; name: string; channels: string[]; }
+interface TreatmentRef { id: string; name: string; action_id: string | null; channel: string; variant_label: string; }
 
 interface Journey {
   id: string;
@@ -78,6 +84,8 @@ export default function JourneysPage() {
 
   const [journeys, setJourneys]     = useState<Journey[]>([]);
   const [templates, setTemplates]   = useState<JourneyTemplate[]>([]);
+  const [actions, setActions]       = useState<ActionRef[]>([]);
+  const [treatments, setTreatments] = useState<TreatmentRef[]>([]);
   const [industryFilter, setIndustryFilter] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -101,7 +109,46 @@ export default function JourneysPage() {
     setTemplates(json.data ?? []);
   }, []);
 
-  useEffect(() => { fetchJourneys(); fetchTemplates(); }, [fetchJourneys, fetchTemplates]);
+  const fetchActions = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/hydrate?tenantId=${TENANT_ID}`);
+      const json = await res.json();
+      setActions((json.actions ?? []).map((a: { id: string; name: string; channels?: string[] }) => ({ id: a.id, name: a.name, channels: a.channels ?? [] })));
+    } catch { /* non-fatal */ }
+  }, []);
+
+  const fetchTreatments = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/treatments?tenantId=${TENANT_ID}`);
+      const json = await res.json();
+      setTreatments((json.data ?? []).map((t: { id: string; name: string; action_id: string | null; channel: string; variant_label: string }) =>
+        ({ id: t.id, name: t.name, action_id: t.action_id, channel: t.channel, variant_label: t.variant_label })));
+    } catch { /* non-fatal */ }
+  }, []);
+
+  useEffect(() => { fetchJourneys(); fetchTemplates(); fetchActions(); fetchTreatments(); }, [fetchJourneys, fetchTemplates, fetchActions, fetchTreatments]);
+
+  // ── Stage editing helpers ─────────────────────────────────────────────────
+  const newStage = (): JourneyStage => ({ id: `s${Date.now()}`, name: '', day: 0, channel: 'email', action_id: undefined, action_name: '', treatment_id: undefined, condition: '', wait_days: 0, exit_on: [] });
+
+  function updateStage(idx: number, patch: Partial<JourneyStage>) {
+    setForm(f => {
+      const stages = [...(f.stages ?? [])];
+      stages[idx] = { ...stages[idx], ...patch };
+      return { ...f, stages };
+    });
+  }
+  function addStage() { setForm(f => ({ ...f, stages: [...(f.stages ?? []), newStage()] })); }
+  function removeStage(idx: number) { setForm(f => ({ ...f, stages: (f.stages ?? []).filter((_, i) => i !== idx) })); }
+  function moveStage(idx: number, dir: -1 | 1) {
+    setForm(f => {
+      const stages = [...(f.stages ?? [])];
+      const j = idx + dir;
+      if (j < 0 || j >= stages.length) return f;
+      [stages[idx], stages[j]] = [stages[j], stages[idx]];
+      return { ...f, stages };
+    });
+  }
 
   async function saveJourney() {
     if (!form.name?.trim()) { setError('Name is required'); return; }
@@ -319,7 +366,7 @@ export default function JourneysPage() {
       {/* Journey Modal */}
       {modal && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
-          <div style={{ background:'var(--bg-panel)', border:'1px solid var(--border)', borderRadius:12, padding:28, width:'100%', maxWidth:600, maxHeight:'90vh', overflowY:'auto' }}>
+          <div style={{ background:'var(--bg-panel)', border:'1px solid var(--border)', borderRadius:12, padding:28, width:'100%', maxWidth:780, maxHeight:'90vh', overflowY:'auto' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
               <h2 style={{ margin:0, fontSize:17, fontWeight:700, color:'var(--text-primary)' }}>{form.id ? 'Edit Journey' : 'New Journey'}</h2>
               <button onClick={() => { setModal(false); setError(''); }} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)', padding:4 }}><X size={16} /></button>
@@ -350,6 +397,75 @@ export default function JourneysPage() {
                   {JOURNEY_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
+            </div>
+
+            {/* Stage editor */}
+            <div style={{ marginTop:22 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em' }}>Stages ({form.stages?.length ?? 0})</div>
+                <button onClick={addStage} style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:6, border:'1px solid var(--border)', background:'none', color:'var(--brand-accent)', cursor:'pointer', fontSize:12, fontWeight:600 }}><Plus size={12} /> Add stage</button>
+              </div>
+              {(form.stages ?? []).length === 0 ? (
+                <div style={{ fontSize:12, color:'var(--text-muted)', fontStyle:'italic', padding:'8px 0' }}>No stages yet. Add stages, or start from a template below.</div>
+              ) : (
+                <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                  {(form.stages ?? []).map((stage, idx) => {
+                    const stageTreatments = treatments.filter(t => t.action_id === stage.action_id && (t.channel === stage.channel || !t.channel));
+                    return (
+                      <div key={stage.id ?? idx} style={{ border:'1px solid var(--border)', borderRadius:8, padding:12, background:'var(--bg)' }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                          <span style={{ width:22, height:22, borderRadius:'50%', background:'rgba(99,102,241,0.12)', color:'var(--brand-accent)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{idx+1}</span>
+                          <input value={stage.name} onChange={e => updateStage(idx, { name: e.target.value })} placeholder="Stage name (e.g. Welcome Email)" style={{ ...inputStyle, flex:1 }} />
+                          <button onClick={() => moveStage(idx, -1)} disabled={idx===0} style={miniBtn(idx===0)}>↑</button>
+                          <button onClick={() => moveStage(idx, 1)} disabled={idx===(form.stages?.length ?? 0)-1} style={miniBtn(idx===(form.stages?.length ?? 0)-1)}>↓</button>
+                          <button onClick={() => removeStage(idx)} style={{ background:'none', border:'none', cursor:'pointer', color:'#ef4444', padding:2 }}><Trash2 size={13} /></button>
+                        </div>
+                        <div style={{ display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:8 }}>
+                          <div>
+                            <FieldLabel label="Day" />
+                            <input type="number" value={stage.day} onChange={e => updateStage(idx, { day: Number(e.target.value) })} style={inputStyle} />
+                          </div>
+                          <div>
+                            <FieldLabel label="Channel" />
+                            <select value={stage.channel} onChange={e => updateStage(idx, { channel: e.target.value, treatment_id: undefined })} style={inputStyle}>
+                              {STAGE_CHANNELS.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <FieldLabel label="Action" />
+                            <select value={stage.action_id ?? ''} onChange={e => {
+                              const a = actions.find(x => x.id === e.target.value);
+                              updateStage(idx, { action_id: e.target.value || undefined, action_name: a?.name ?? '', treatment_id: undefined });
+                            }} style={inputStyle}>
+                              <option value="">— Arbitrate (any eligible) —</option>
+                              {actions.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <FieldLabel label="Treatment" />
+                            <select value={stage.treatment_id ?? ''} onChange={e => updateStage(idx, { treatment_id: e.target.value || undefined })} style={inputStyle} disabled={!stage.action_id}>
+                              <option value="">{stage.action_id ? 'Auto (by channel)' : 'Select an action first'}</option>
+                              {stageTreatments.map(t => <option key={t.id} value={t.id}>{t.name}{t.variant_label ? ` (${t.variant_label})` : ''}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <FieldLabel label="Condition" />
+                            <input value={stage.condition} onChange={e => updateStage(idx, { condition: e.target.value })} placeholder="e.g. first_deposit = false" style={inputStyle} />
+                          </div>
+                          <div>
+                            <FieldLabel label="Wait days (to next)" />
+                            <input type="number" value={stage.wait_days} onChange={e => updateStage(idx, { wait_days: Number(e.target.value) })} style={inputStyle} />
+                          </div>
+                          <div style={{ gridColumn:'span 2' }}>
+                            <FieldLabel label="Exit on (comma-separated events)" />
+                            <input value={(stage.exit_on ?? []).join(', ')} onChange={e => updateStage(idx, { exit_on: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })} placeholder="converted, opted_out" style={inputStyle} />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Template suggestions */}
@@ -409,6 +525,10 @@ const inputStyle: React.CSSProperties = {
   border: '1px solid var(--border)', background: 'var(--bg)',
   color: 'var(--text-primary)', fontSize: 13, boxSizing: 'border-box',
 };
+
+function miniBtn(disabled: boolean): React.CSSProperties {
+  return { width:26, height:26, borderRadius:6, border:'1px solid var(--border)', background:'none', color:'var(--text-muted)', cursor: disabled ? 'not-allowed' : 'pointer', fontSize:13, opacity: disabled ? 0.4 : 1, flexShrink:0 };
+}
 
 function FieldLabel({ label, required }: { label: string; required?: boolean }) {
   return (
