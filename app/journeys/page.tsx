@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Route, Plus, Edit2, Trash2, X, ChevronRight, Mail, MessageSquare, Bell, Monitor, Phone, Send, History } from 'lucide-react';
+import { Route, Plus, Edit2, Trash2, X, ChevronRight, Mail, MessageSquare, Bell, Monitor, Phone, Send, History, UserPlus, Play, FastForward } from 'lucide-react';
 import { AuditDrawer, ConfirmDialog } from '../components/AuditDrawer';
 
 const TENANT_ID = 'f0000000-0000-4000-a000-000000000001';
@@ -97,6 +97,12 @@ export default function JourneysPage() {
   const [audit, setAudit]     = useState<{ id?: string; name: string } | null>(null);
   const [confirmDel, setConfirmDel] = useState<{ id: string; name: string } | null>(null);
 
+  const [enrollCounts, setEnrollCounts] = useState<Record<string, { active: number; completed: number; exited: number }>>({});
+  const [enrollFor, setEnrollFor] = useState<{ id: string; name: string } | null>(null);
+  const [enrollIds, setEnrollIds] = useState('');
+  const [enrollBusy, setEnrollBusy] = useState(false);
+  const [worker, setWorker] = useState<string>('');
+
   const fetchJourneys = useCallback(async () => {
     const res = await fetch(`/api/journeys?tenantId=${TENANT_ID}`);
     const json = await res.json();
@@ -126,7 +132,42 @@ export default function JourneysPage() {
     } catch { /* non-fatal */ }
   }, []);
 
-  useEffect(() => { fetchJourneys(); fetchTemplates(); fetchActions(); fetchTreatments(); }, [fetchJourneys, fetchTemplates, fetchActions, fetchTreatments]);
+  const fetchEnrollCounts = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/journeys/enroll?tenantId=${TENANT_ID}`);
+      const json = await res.json();
+      setEnrollCounts(json.counts ?? {});
+    } catch { /* non-fatal */ }
+  }, []);
+
+  useEffect(() => { fetchJourneys(); fetchTemplates(); fetchActions(); fetchTreatments(); fetchEnrollCounts(); }, [fetchJourneys, fetchTemplates, fetchActions, fetchTreatments, fetchEnrollCounts]);
+
+  async function enrollCustomers() {
+    if (!enrollFor) return;
+    setEnrollBusy(true);
+    const ids = enrollIds.split(/[\s,]+/).map(s => s.trim()).filter(Boolean);
+    try {
+      const res = await fetch('/api/journeys/enroll', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ journeyId: enrollFor.id, tenantId: TENANT_ID, customerIds: ids, audienceRules: [] }),
+      });
+      const j = await res.json();
+      setWorker(res.ok ? `Enrolled ${j.enrolled} of ${j.targeted} into "${enrollFor.name}"` : (j.error ?? 'Enroll failed'));
+      setEnrollFor(null); setEnrollIds(''); fetchEnrollCounts();
+    } finally { setEnrollBusy(false); }
+  }
+
+  async function runWorker(fastForward: boolean) {
+    setWorker('Running worker…');
+    try {
+      const res = await fetch(`/api/journeys/tick?tenantId=${TENANT_ID}${fastForward ? '&fastForward=true' : ''}`, { method: 'POST' });
+      const j = await res.json();
+      setWorker(res.ok
+        ? `Worker: ${j.processed} processed · ${j.stagesFired} stages fired · ${j.completed} completed · ${j.exited} exited`
+        : (j.error ?? 'Worker failed'));
+      fetchEnrollCounts();
+    } catch (e: unknown) { setWorker(e instanceof Error ? e.message : 'Worker failed'); }
+  }
 
   // ── Stage editing helpers ─────────────────────────────────────────────────
   const newStage = (): JourneyStage => ({ id: `s${Date.now()}`, name: '', day: 0, channel: 'email', action_id: undefined, action_name: '', treatment_id: undefined, condition: '', wait_days: 0, exit_on: [] });
@@ -217,13 +258,30 @@ export default function JourneysPage() {
           </div>
         </div>
         {tab === 'journeys' && (
-          <button
-            onClick={() => { setError(''); setForm(emptyJourney()); setModal(true); }}
-            style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 16px', background:'var(--brand-accent)', color:'white', border:'none', borderRadius:8, cursor:'pointer', fontSize:13, fontWeight:600 }}>
-            <Plus size={14} /> New Journey
-          </button>
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={() => runWorker(false)} title="Process stages due now (as the daily cron does)"
+              style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'none', color:'var(--text-primary)', border:'1px solid var(--border)', borderRadius:8, cursor:'pointer', fontSize:13, fontWeight:600 }}>
+              <Play size={13} /> Run Worker
+            </button>
+            <button onClick={() => runWorker(true)} title="Fast-forward: run all active enrolments to completion now (testing)"
+              style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', background:'none', color:'var(--text-primary)', border:'1px solid var(--border)', borderRadius:8, cursor:'pointer', fontSize:13, fontWeight:600 }}>
+              <FastForward size={13} /> Fast-forward
+            </button>
+            <button
+              onClick={() => { setError(''); setForm(emptyJourney()); setModal(true); }}
+              style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 16px', background:'var(--brand-accent)', color:'white', border:'none', borderRadius:8, cursor:'pointer', fontSize:13, fontWeight:600 }}>
+              <Plus size={14} /> New Journey
+            </button>
+          </div>
         )}
       </div>
+
+      {worker && (
+        <div style={{ background:'var(--bg-panel)', border:'1px solid var(--border)', borderLeft:'3px solid var(--brand-accent)', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:13, color:'var(--text-secondary)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <span>{worker}</span>
+          <button onClick={() => setWorker('')} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)' }}><X size={14} /></button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div style={{ display:'flex', gap:4, marginBottom:24, borderBottom:'1px solid var(--border)' }}>
@@ -265,6 +323,12 @@ export default function JourneysPage() {
                         <span style={{ padding:'2px 8px', borderRadius:20, fontSize:11, fontWeight:600, background:`${INDUSTRY_COLORS[j.industry] ?? '#6b7280'}20`, color:INDUSTRY_COLORS[j.industry] ?? '#6b7280', textTransform:'capitalize' }}>{j.industry}</span>
                       )}
                       <span style={{ padding:'2px 8px', borderRadius:20, fontSize:11, fontWeight:600, background:`${STATUS_COLORS[j.status]}20`, color:STATUS_COLORS[j.status], textTransform:'capitalize' }}>{j.status}</span>
+                      {enrollCounts[j.id] && (
+                        <span title="active / completed / exited enrolments" style={{ padding:'2px 8px', borderRadius:20, fontSize:11, fontWeight:600, background:'rgba(34,197,94,0.12)', color:'#16a34a' }}>
+                          {enrollCounts[j.id].active}▶ · {enrollCounts[j.id].completed}✓ · {enrollCounts[j.id].exited}⤬
+                        </span>
+                      )}
+                      <button onClick={e => { e.stopPropagation(); setEnrollFor({ id:j.id, name:j.name }); setEnrollIds(''); }} title="Enroll customers" style={{ padding:4, background:'none', border:'none', cursor:'pointer', color:'var(--brand-accent)' }}><UserPlus size={14} /></button>
                       <button onClick={e => { e.stopPropagation(); setAudit({ id:j.id, name:j.name }); }} title="Audit history" style={{ padding:4, background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)' }}><History size={13} /></button>
                       <button onClick={e => { e.stopPropagation(); openEdit(j); }} title="Edit" style={{ padding:4, background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)' }}><Edit2 size={13} /></button>
                       <button onClick={e => { e.stopPropagation(); setConfirmDel({ id:j.id, name:j.name }); }} title="Delete" style={{ padding:4, background:'none', border:'none', cursor:'pointer', color:'#ef4444' }}><Trash2 size={13} /></button>
@@ -497,6 +561,25 @@ export default function JourneysPage() {
               <button onClick={saveJourney} disabled={saving} style={{ padding:'7px 16px', borderRadius:6, border:'none', background:'var(--brand-accent)', color:'white', cursor:'pointer', fontSize:13, fontWeight:600, opacity: saving ? 0.7 : 1 }}>
                 {saving ? 'Saving…' : 'Save'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Enroll Modal */}
+      {enrollFor && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }} onClick={e => e.target === e.currentTarget && setEnrollFor(null)}>
+          <div style={{ background:'var(--bg-panel)', border:'1px solid var(--border)', borderRadius:12, padding:26, width:460, maxWidth:'92vw' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+              <h2 style={{ margin:0, fontSize:16, fontWeight:700, color:'var(--text-primary)' }}>Enroll into “{enrollFor.name}”</h2>
+              <button onClick={() => setEnrollFor(null)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)' }}><X size={16} /></button>
+            </div>
+            <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.04em', marginBottom:5 }}>Customer IDs</label>
+            <textarea value={enrollIds} onChange={e => setEnrollIds(e.target.value)} rows={3} placeholder="CUST-001, CUST-002 …  (leave blank to enroll all customers)" style={{ ...inputStyle, resize:'vertical', fontFamily:'monospace', fontSize:12 }} />
+            <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:6 }}>Stage 1 becomes due at its Day offset from enrollment. Use “Fast-forward” to run immediately.</div>
+            <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:18 }}>
+              <button onClick={() => setEnrollFor(null)} style={{ padding:'7px 16px', borderRadius:6, border:'1px solid var(--border)', background:'none', color:'var(--text-secondary)', cursor:'pointer', fontSize:13 }}>Cancel</button>
+              <button onClick={enrollCustomers} disabled={enrollBusy} style={{ padding:'7px 16px', borderRadius:6, border:'none', background:'var(--brand-accent)', color:'#fff', cursor:'pointer', fontSize:13, fontWeight:600, opacity: enrollBusy ? 0.6 : 1 }}>{enrollBusy ? 'Enrolling…' : 'Enroll'}</button>
             </div>
           </div>
         </div>
