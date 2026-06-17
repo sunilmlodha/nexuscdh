@@ -102,7 +102,9 @@ async function run(req: NextRequest) {
         if (actionId) {
           await insertDecisionLog({
             tenant_id: tenantId, customer_id: enr.customer_id,
-            strategy_id: journey.id, strategy_name: `Journey: ${journey.name} · ${s.name}`,
+            // strategy_id omitted: journey-stage decisions aren't tied to a strategy row
+            // (decision_log.strategy_id FKs strategies); the source is in strategy_name + trace
+            strategy_name: `Journey: ${journey.name} · ${s.name}`,
             action_id: actionId, action_name: actionName, channel_id: channel,
             served: true, propensity,
             customer_attributes: attrsById[enr.customer_id] ?? {},

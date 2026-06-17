@@ -82,7 +82,8 @@ export async function POST(req: NextRequest) {
       if (!action) { suppressed++; bump('no_action'); continue; }
       await insertDecisionLog({
         tenant_id: tenantId, customer_id: p.customer_id,
-        strategy_id: campaign.id, strategy_name: `Campaign: ${campaign.name}`,
+        // strategy_id omitted: campaign decisions aren't tied to a strategy row (FK)
+        strategy_name: `Campaign: ${campaign.name}`,
         action_id: action.id, action_name: action.name,
         channel_id: campaign.channel ?? action.channels?.[0] ?? 'email',
         served: true, propensity: action.base_propensity,
