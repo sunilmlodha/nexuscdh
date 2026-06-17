@@ -12,7 +12,7 @@ import {
   ChevronRight, UserCheck, Zap, Sparkles,
   UserSearch, FlaskConical, BarChart3, Key, ScrollText, Wand2,
   Share2, Workflow, Package, Route, Gem, LineChart, ShieldCheck,
-  Boxes, GitPullRequest,
+  Boxes, GitPullRequest, TrendingUp,
 } from 'lucide-react';
 
 const NAV_SECTIONS = [
@@ -38,6 +38,7 @@ const NAV_SECTIONS = [
       { href: '/value-finder',label: 'Value Finder',    icon: Gem,          permission: 'analytics:read' },
       { href: '/scenario',  label: 'Scenario Planner',  icon: LineChart,    permission: 'simulator:read' },
       { href: '/bias',      label: 'Ethical Bias Check',icon: ShieldCheck,  permission: 'analytics:read' },
+      { href: '/lift',      label: 'Lift Analytics',    icon: TrendingUp,   permission: 'analytics:read' },
       { href: '/simulator', label: 'Decision Simulator',icon: Cpu,          permission: 'simulator:read' },
       { href: '/profiles',  label: 'Customer Profiles', icon: UserSearch,   permission: 'profiles:read' },
       { href: '/experiments',label: 'Experiments',      icon: FlaskConical, permission: 'experiments:read' },
