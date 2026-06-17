@@ -64,6 +64,10 @@ export async function POST(req: NextRequest) {
     offer_value:   body.offer_value ?? null,
     variant_label: body.variant_label ?? null,
     status:        body.status ?? 'draft',
+    offer_state:   body.offer_state ?? 'draft',
+    effective_from: body.effective_from || null,
+    effective_to:   body.effective_to || null,
+    approved_by:   body.approved_by ?? null,
     updated_by:    actor,
     updated_at:    new Date().toISOString(),
   };

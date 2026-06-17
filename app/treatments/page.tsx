@@ -41,6 +41,9 @@ interface Treatment {
   offer_value: number | null;
   variant_label: string;
   status: string;
+  offer_state: string;
+  effective_from: string | null;
+  effective_to: string | null;
 }
 
 interface Bundle {
@@ -60,9 +63,15 @@ interface Action {
   name: string;
 }
 
+const OFFER_STATES = ['draft','in_review','live','expired'];
+const OFFER_STATE_COLORS: Record<string,string> = {
+  draft: 'var(--text-muted)', in_review: '#f59e0b', live: '#22c55e', expired: '#6b7280',
+};
+
 const emptyTreatment = (): Partial<Treatment> => ({
   name: '', description: '', channel: 'email', headline: '', body_copy: '',
   cta_label: '', offer_code: '', offer_value: null, variant_label: 'A', status: 'draft',
+  offer_state: 'draft', effective_from: null, effective_to: null,
 });
 
 const emptyBundle = (): Partial<Bundle> => ({
@@ -205,7 +214,7 @@ export default function TreatmentsPage() {
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
               <thead>
                 <tr style={{ borderBottom:'1px solid var(--border)', background:'rgba(0,0,0,0.02)' }}>
-                  {['Name','Action','Channel','Variant','Offer','Status',''].map(h => (
+                  {['Name','Action','Channel','Variant','Offer','Offer State','Status',''].map(h => (
                     <th key={h} style={{ padding:'10px 16px', textAlign:'left', fontWeight:600, color:'var(--text-muted)', fontSize:11, textTransform:'uppercase', letterSpacing:'0.05em' }}>{h}</th>
                   ))}
                 </tr>
@@ -224,6 +233,10 @@ export default function TreatmentsPage() {
                     <td style={{ padding:'12px 16px', color:'var(--text-secondary)' }}>{t.variant_label ?? '—'}</td>
                     <td style={{ padding:'12px 16px', color:'var(--text-secondary)' }}>
                       {t.offer_code ? <span>{t.offer_code}{t.offer_value != null ? ` (${t.offer_value})` : ''}</span> : '—'}
+                    </td>
+                    <td style={{ padding:'12px 16px' }}>
+                      <span style={{ padding:'2px 8px', borderRadius:20, fontSize:11, fontWeight:600, background:`${OFFER_STATE_COLORS[t.offer_state] ?? 'var(--text-muted)'}20`, color:OFFER_STATE_COLORS[t.offer_state] ?? 'var(--text-muted)', textTransform:'capitalize' }}>{(t.offer_state ?? 'draft').replace('_',' ')}</span>
+                      {(t.effective_from || t.effective_to) && <div style={{ fontSize:10, color:'var(--text-muted)', marginTop:2 }}>{t.effective_from ?? '…'} → {t.effective_to ?? '…'}</div>}
                     </td>
                     <td style={{ padding:'12px 16px' }}>
                       <span style={{ padding:'2px 8px', borderRadius:20, fontSize:11, fontWeight:600, background:`${STATUS_COLORS[t.status]}20`, color:STATUS_COLORS[t.status], textTransform:'capitalize' }}>{t.status}</span>
@@ -326,6 +339,23 @@ export default function TreatmentsPage() {
               <select value={tForm.status ?? 'draft'} onChange={e => setTForm(f => ({ ...f, status: e.target.value }))} style={inputStyle}>
                 {TREATMENT_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
+            </Field>
+            <Field label="Offer Lifecycle" span={2}>
+              <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                {OFFER_STATES.map(s => (
+                  <button key={s} type="button" onClick={() => setTForm(f => ({ ...f, offer_state: s }))}
+                    style={{ padding:'5px 12px', borderRadius:20, border:`1px solid ${tForm.offer_state===s ? (OFFER_STATE_COLORS[s]) : 'var(--border)'}`, background: tForm.offer_state===s ? `${OFFER_STATE_COLORS[s]}20` : 'none', color: tForm.offer_state===s ? OFFER_STATE_COLORS[s] : 'var(--text-secondary)', cursor:'pointer', fontSize:12, fontWeight:600, textTransform:'capitalize' }}>
+                    {s.replace('_',' ')}
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:6 }}>Only <strong>live</strong> offers within their effective window can be sent by segment campaigns.</div>
+            </Field>
+            <Field label="Effective From">
+              <input type="date" value={tForm.effective_from ?? ''} onChange={e => setTForm(f => ({ ...f, effective_from: e.target.value || null }))} style={inputStyle} />
+            </Field>
+            <Field label="Effective To">
+              <input type="date" value={tForm.effective_to ?? ''} onChange={e => setTForm(f => ({ ...f, effective_to: e.target.value || null }))} style={inputStyle} />
             </Field>
           </FormGrid>
           {error && <div style={{ color:'#ef4444', fontSize:12, marginTop:8 }}>{error}</div>}

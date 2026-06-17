@@ -12,7 +12,7 @@ import {
   ChevronRight, UserCheck, Zap, Sparkles,
   UserSearch, FlaskConical, BarChart3, Key, ScrollText, Wand2,
   Share2, Workflow, Package, Route, Gem, LineChart, ShieldCheck,
-  Boxes, GitPullRequest, TrendingUp,
+  Boxes, GitPullRequest, TrendingUp, Megaphone,
 } from 'lucide-react';
 
 const NAV_SECTIONS = [
@@ -23,6 +23,7 @@ const NAV_SECTIONS = [
       { href: '/taxonomy',    label: 'Taxonomy',             icon: Layers,   permission: 'taxonomy:read' },
       { href: '/treatments', label: 'Treatments & Bundles', icon: Package,  permission: 'taxonomy:read' },
       { href: '/journeys',   label: 'Customer Journeys',    icon: Route,    permission: 'strategies:read' },
+      { href: '/campaigns',  label: 'Campaigns',            icon: Megaphone,permission: 'strategies:read' },
       { href: '/strategies', label: 'Strategies',           icon: GitBranch,permission: 'strategies:read' },
       { href: '/arbitration',label: 'Arbitration',          icon: Scale,    permission: 'strategies:read' },
       { href: '/channels',  label: 'Channels',       icon: Radio,           permission: 'channels:read' },
