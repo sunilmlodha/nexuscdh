@@ -49,6 +49,7 @@ export interface DBStrategy {
   // Arbitration: Priority = P × C × V × L
   context_weight?: number;        // C — situational weight (default 1)
   business_levers?: Array<{ id?: string; label: string; multiplier: number; condition?: { attribute: string; op: string; value: string } | null; enabled?: boolean }>;
+  control_group_pct?: number;     // 0–1 random hold-out for lift measurement
   policy_id?: string;
   model_id?: string;
   arbitration: 'propensity' | 'value' | 'weighted' | 'random_ab';
@@ -111,6 +112,7 @@ export interface DBDecisionLog {
   trace: unknown[];
   decision_latency_ms?: number;
   experiment_id?: string;
+  is_control?: boolean;
   variant_name?: string;
   created_at: string;
 }

@@ -150,6 +150,21 @@ export interface GlobalNBAResult {
   candidates: Array<{ strategy: DBStrategy; action: DBAction; breakdown: PriorityBreakdown }>;
   suppressedCount: number;
   noMatchCount: number;
+  isControl: boolean;   // true = customer held out of the winning strategy's control group
+}
+
+/** Stable [0,1) hash of a string — used for deterministic control-group assignment. */
+export function hashFraction(seed: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return ((h >>> 0) % 100000) / 100000;
+}
+
+/** Deterministic: is this customer in the no-action control hold-out for this strategy? */
+export function isInControlGroup(customerId: string, strategy: DBStrategy): boolean {
+  const pct = strategy.control_group_pct ?? 0;
+  if (pct <= 0) return false;
+  return hashFraction(`${customerId}:${strategy.id}`) < pct;
 }
 
 export function globalNBA(
@@ -179,12 +194,17 @@ export function globalNBA(
   }
 
   candidates.sort((a, b) => b.breakdown.priority - a.breakdown.priority);
+  const winner = candidates[0] ?? null;
+  // Control-group hold-out: if the winning strategy runs a control group and this
+  // customer falls in it, the action is withheld (but kept for lift reporting).
+  const isControl = winner ? isInControlGroup(car.customerId, winner.strategy) : false;
   return {
-    served: candidates.length > 0,
-    winner: candidates[0] ?? null,
+    served: !!winner && !isControl,
+    winner,
     candidates,
     suppressedCount,
     noMatchCount,
+    isControl,
   };
 }
 

@@ -18,6 +18,7 @@ interface Strategy {
   suitability_rules?: Rule[];
   context_weight?: number;
   business_levers?: Lever[];
+  control_group_pct?: number;
 }
 
 interface Breakdown { P: number; C: number; V: number; L: number; priority: number; appliedLevers: string[]; actionId?: string; actionName?: string; strategyName?: string; }
@@ -88,6 +89,7 @@ export default function ArbitrationPage() {
           suitability_rules:   draft.suitability_rules ?? [],
           context_weight:      draft.context_weight ?? 1,
           business_levers:     draft.business_levers ?? [],
+          control_group_pct:   draft.control_group_pct ?? 0,
         }),
       });
       if (res.ok) { setSavedFlash(true); setTimeout(() => setSavedFlash(false), 2500); load(); }
@@ -206,6 +208,17 @@ export default function ArbitrationPage() {
                 <input type="range" min={0} max={2} step={0.1} value={draft.context_weight ?? 1}
                   onChange={e => setDraft(d => d ? { ...d, context_weight: Number(e.target.value) } : d)} style={{ flex: 1 }} />
                 <span style={{ fontFamily: 'monospace', fontSize: 14, fontWeight: 700, color: 'var(--brand-accent)', minWidth: 38, textAlign: 'right' }}>{(draft.context_weight ?? 1).toFixed(1)}×</span>
+              </div>
+            </div>
+
+            {/* Control group */}
+            <div style={{ ...panel, padding: 20 }}>
+              <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>Control Group (hold-out)</div>
+              <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--text-muted)' }}>Randomly withhold this fraction of customers (deterministic per customer) to measure lift against a no-action baseline.</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <input type="range" min={0} max={0.5} step={0.05} value={draft.control_group_pct ?? 0}
+                  onChange={e => setDraft(d => d ? { ...d, control_group_pct: Number(e.target.value) } : d)} style={{ flex: 1 }} />
+                <span style={{ fontFamily: 'monospace', fontSize: 14, fontWeight: 700, color: '#f59e0b', minWidth: 44, textAlign: 'right' }}>{Math.round((draft.control_group_pct ?? 0) * 100)}%</span>
               </div>
             </div>
 

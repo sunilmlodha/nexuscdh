@@ -103,13 +103,22 @@ export async function POST(
   const allPolicies   = policies   ?? [];
 
   // ── 3. Container → strategy mapping ─────────────────────────────────────────
-  // Map container names to strategy subsets. "PrimaryContainer" / unknown → all active.
+  // Prefer a persisted container config (managed at /containers). Fall back to
+  // the built-in demo mapping, then to all active strategies.
+  const { data: containerCfg } = await serviceSupabase
+    .from('realtime_containers').select('strategy_ids, status')
+    .eq('tenant_id', tenantId).eq('name', containerName).maybeSingle();
+
   const containerMap: Record<string, string[]> = {
     SalesContainer:       allStrategies.filter(s => s.name?.toLowerCase().includes('sale') || s.name?.toLowerCase().includes('insurance') || s.name?.toLowerCase().includes('card')).map((s: {id: string}) => s.id),
     RetentionContainer:   allStrategies.filter(s => s.name?.toLowerCase().includes('re-engage') || s.name?.toLowerCase().includes('retention')).map((s: {id: string}) => s.id),
     OnboardingContainer:  allStrategies.filter(s => s.name?.toLowerCase().includes('onboard')).map((s: {id: string}) => s.id),
   };
-  const eligibleStrategyIds = containerMap[containerName] ?? allStrategies.map((s: {id: string}) => s.id);
+
+  const configuredIds = containerCfg && Array.isArray(containerCfg.strategy_ids) && containerCfg.strategy_ids.length
+    ? containerCfg.strategy_ids as string[]
+    : null;
+  const eligibleStrategyIds = configuredIds ?? containerMap[containerName] ?? allStrategies.map((s: {id: string}) => s.id);
   const eligibleStrategies  = allStrategies.filter((s: {id: string}) => eligibleStrategyIds.includes(s.id));
 
   // ── 4. Evaluate each strategy ────────────────────────────────────────────────

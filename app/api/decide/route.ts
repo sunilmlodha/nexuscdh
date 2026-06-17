@@ -20,7 +20,7 @@ import {
 } from '@/lib/supabase';
 import type { PriorityBreakdown } from '@/lib/arbitration';
 import {
-  evaluateStrategy, arbitrate, translateSuppression, carFromAttributes,
+  evaluateStrategy, arbitrate, translateSuppression, carFromAttributes, isInControlGroup,
   type CAR,
 } from '@/lib/decision-engine';
 
@@ -116,8 +116,10 @@ export async function POST(req: NextRequest) {
   const arb        = arbitrate(result, actions, strategy, car, minPropensity);
   const bestAction = arb.winner;
 
-  const served            = result.outcome === 'PASS' && bestAction !== null;
-  const suppressionReason = served ? undefined : result.reason;
+  // Control-group hold-out: withhold the action (but record what would've served)
+  const isControl = bestAction !== null && isInControlGroup(customerId, strategy);
+  const served            = result.outcome === 'PASS' && bestAction !== null && !isControl;
+  const suppressionReason = served ? undefined : (isControl ? 'Control group (no-action hold-out)' : result.reason);
   const translation       = suppressionReason ? translateSuppression(suppressionReason) : null;
 
   const ep = result.engagementPolicy;
@@ -160,6 +162,7 @@ export async function POST(req: NextRequest) {
     customer_attributes: mergedAttrs,
     trace,
     decision_latency_ms: latencyMs,
+    is_control: isControl,
   }, tenantId);
 
   persistedDecisionId = logId ?? undefined;
@@ -190,6 +193,7 @@ export async function POST(req: NextRequest) {
       })),
     } : undefined,
     engagementPolicy: result.engagementPolicy,
+    controlGroup: isControl ? { held_out: true, wouldHaveServed: bestAction?.name ?? null } : undefined,
     suppressionReason,
     suppressionExplanation: translation ? {
       plain:     translation.plain,
@@ -287,6 +291,8 @@ export async function GET(req: NextRequest) {
   // Global arbitration: highest P×C×V×L priority across all qualifying strategies
   candidates.sort((a, b) => b.priority - a.priority);
   const winner = candidates[0] ?? null;
+  const isControl = winner ? isInControlGroup(customerId, winner.strategy) : false;
+  const servedGlobal = winner !== null && !isControl;
 
   // Persist profile + decision log
   await upsertCustomerProfile(tenantId, customerId, mergedAttrs as Record<string, unknown>);
@@ -298,25 +304,28 @@ export async function GET(req: NextRequest) {
       customer_id:         customerId,
       strategy_id:         winner.strategy.id,
       strategy_name:       winner.strategy.name,
-      action_id:           winner.action.id,
-      action_name:         winner.action.name,
-      channel_id:          winner.action.channels[0] ?? 'web',
-      served:              true,
+      action_id:           servedGlobal ? winner.action.id : undefined,
+      action_name:         servedGlobal ? winner.action.name : undefined,
+      channel_id:          servedGlobal ? (winner.action.channels[0] ?? 'web') : undefined,
+      served:              servedGlobal,
+      suppression_reason:  isControl ? 'Control group (no-action hold-out)' : undefined,
       propensity:          winner.action.base_propensity,
       customer_attributes: mergedAttrs as Record<string, unknown>,
-      trace:               [{ step: 'global-nba', strategiesEvaluated: activeStrategies.length, candidatesFound: candidates.length, priority: winner.priority, breakdown: winner.breakdown }],
+      trace:               [{ step: 'global-nba', strategiesEvaluated: activeStrategies.length, candidatesFound: candidates.length, priority: winner.priority, breakdown: winner.breakdown, isControl }],
       decision_latency_ms: Date.now() - start,
+      is_control:          isControl,
     }, tenantId);
 
-    // Increment contact frequency counter
-    await incrementContactCount(tenantId, customerId, winner.action.channels[0] ?? 'web');
+    // Increment contact frequency counter only when an action is actually served
+    if (servedGlobal) await incrementContactCount(tenantId, customerId, winner.action.channels[0] ?? 'web');
   }
 
   return NextResponse.json({
     globalDecision:       true,
-    served:               winner !== null,
+    served:               servedGlobal,
+    controlGroup:         isControl ? { held_out: true, wouldHaveServed: winner?.action.name ?? null } : undefined,
     decisionId:           decisionId ?? undefined,
-    action: winner ? {
+    action: servedGlobal && winner ? {
       id:         winner.action.id,
       name:       winner.action.name,
       headline:   winner.action.headline,
