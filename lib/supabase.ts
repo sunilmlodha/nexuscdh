@@ -43,6 +43,13 @@ export interface DBStrategy {
   channel_ids: string[];
   audience_ids: string[];
   eligibility_rules?: Array<{ attribute: string; op: string; value: string }>;
+  // Engagement-policy layers (Pega CDH): eligibility (above) → applicability → suitability
+  applicability_rules?: Array<{ attribute: string; op: string; value: string }>;
+  suitability_rules?: Array<{ attribute: string; op: string; value: string }>;
+  // Arbitration: Priority = P × C × V × L
+  context_weight?: number;        // C — situational weight (default 1)
+  business_levers?: Array<{ id?: string; label: string; multiplier: number; condition?: { attribute: string; op: string; value: string } | null; enabled?: boolean }>;
+  control_group_pct?: number;     // 0–1 random hold-out for lift measurement
   policy_id?: string;
   model_id?: string;
   arbitration: 'propensity' | 'value' | 'weighted' | 'random_ab';
@@ -105,6 +112,7 @@ export interface DBDecisionLog {
   trace: unknown[];
   decision_latency_ms?: number;
   experiment_id?: string;
+  is_control?: boolean;
   variant_name?: string;
   created_at: string;
 }
@@ -475,12 +483,14 @@ export async function insertConfigAudit(
 export async function fetchConfigAudit(
   tenantId = DEFAULT_TENANT,
   entityType?: string,
-  limit = 50
+  limit = 50,
+  entityId?: string
 ): Promise<DBConfigAudit[]> {
   if (!serviceSupabase) return [];
   let q = serviceSupabase.from('config_audit_log').select('*')
     .eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(limit);
   if (entityType) q = q.eq('entity_type', entityType);
+  if (entityId)   q = q.eq('entity_id', entityId);
   const { data } = await q;
   return data ?? [];
 }

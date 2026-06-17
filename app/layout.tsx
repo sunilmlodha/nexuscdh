@@ -7,11 +7,12 @@ import { useEffect } from 'react';
 import { useAuth, usePermission, ROLE_LABELS } from '@/lib/auth';
 import HydrateStore from '@/components/HydrateStore';
 import {
-  LayoutDashboard, Layers, GitBranch, Radio, Shield,
+  LayoutDashboard, Layers, GitBranch, Radio, Shield, Scale,
   Users, Brain, Cpu, Activity, Settings, LogOut,
-  ChevronRight, Database, UserCheck, Zap, Sparkles,
+  ChevronRight, UserCheck, Zap, Sparkles,
   UserSearch, FlaskConical, BarChart3, Key, ScrollText, Wand2,
-  Share2, Workflow, Package, Route,
+  Share2, Workflow, Package, Route, Gem, LineChart, ShieldCheck,
+  Boxes, GitPullRequest, TrendingUp, Megaphone,
 } from 'lucide-react';
 
 const NAV_SECTIONS = [
@@ -22,8 +23,11 @@ const NAV_SECTIONS = [
       { href: '/taxonomy',    label: 'Taxonomy',             icon: Layers,   permission: 'taxonomy:read' },
       { href: '/treatments', label: 'Treatments & Bundles', icon: Package,  permission: 'taxonomy:read' },
       { href: '/journeys',   label: 'Customer Journeys',    icon: Route,    permission: 'strategies:read' },
+      { href: '/campaigns',  label: 'Campaigns',            icon: Megaphone,permission: 'strategies:read' },
       { href: '/strategies', label: 'Strategies',           icon: GitBranch,permission: 'strategies:read' },
+      { href: '/arbitration',label: 'Arbitration',          icon: Scale,    permission: 'strategies:read' },
       { href: '/channels',  label: 'Channels',       icon: Radio,           permission: 'channels:read' },
+      { href: '/containers',label: 'Real-Time Containers', icon: Boxes,    permission: 'channels:read' },
       { href: '/policies',  label: 'Engagement Policies', icon: Shield,     permission: 'policies:read' },
     ],
   },
@@ -32,6 +36,10 @@ const NAV_SECTIONS = [
     items: [
       { href: '/audiences', label: 'Audiences',         icon: Users,        permission: 'audiences:read' },
       { href: '/models',    label: 'Adaptive Models',   icon: Brain,        permission: 'models:read' },
+      { href: '/value-finder',label: 'Value Finder',    icon: Gem,          permission: 'analytics:read' },
+      { href: '/scenario',  label: 'Scenario Planner',  icon: LineChart,    permission: 'simulator:read' },
+      { href: '/bias',      label: 'Ethical Bias Check',icon: ShieldCheck,  permission: 'analytics:read' },
+      { href: '/lift',      label: 'Lift Analytics',    icon: TrendingUp,   permission: 'analytics:read' },
       { href: '/simulator', label: 'Decision Simulator',icon: Cpu,          permission: 'simulator:read' },
       { href: '/profiles',  label: 'Customer Profiles', icon: UserSearch,   permission: 'profiles:read' },
       { href: '/experiments',label: 'Experiments',      icon: FlaskConical, permission: 'experiments:read' },
@@ -44,9 +52,9 @@ const NAV_SECTIONS = [
   {
     label: 'Operations',
     items: [
-      { href: '/car',        label: 'CAR / Profiles',    icon: Database,        permission: null },
       { href: '/seed',       label: 'Demo Data Seeder',  icon: Share2,          permission: null },
-      { href: '/operations', label: 'Operations',        icon: Activity,        permission: 'operations:read' },
+      { href: '/revisions',  label: '1:1 Operations',    icon: GitPullRequest,  permission: 'operations:read' },
+      { href: '/operations', label: 'Batch Operations',  icon: Activity,        permission: 'operations:read' },
       { href: '/triggers',  label: 'Event Triggers',  icon: Zap,            permission: 'triggers:read' },
       { href: '/apiref',    label: 'API Reference',   icon: Key,            permission: null },
       { href: '/apikeys',   label: 'API Keys',        icon: Key,            permission: 'settings:read' },

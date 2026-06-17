@@ -19,6 +19,11 @@ export async function POST(req: NextRequest) {
   const changedBy = (body.changedBy as string) ?? undefined;
   const isUpdate  = Boolean(body.id);
 
+  // Strip transport-only fields that are not columns on `strategies`, otherwise
+  // the upsert fails with PGRST204 ("Could not find the 'changedBy' column").
+  const { tenantId: _t, changedBy: _c, ...strategyFields } = body;
+  void _t; void _c;
+
   // Snapshot old state before overwrite (for versioning + audit)
   let beforeSnapshot: Record<string, unknown> | undefined;
   if (isUpdate && body.id) {
@@ -27,7 +32,7 @@ export async function POST(req: NextRequest) {
     beforeSnapshot = existing ?? undefined;
   }
 
-  const data = await upsertStrategy(body as { name: string }, tenantId);
+  const data = await upsertStrategy(strategyFields as { name: string }, tenantId);
   if (!data) return NextResponse.json({ error: 'Failed to save strategy' }, { status: 500 });
 
   // Auto-version snapshot

@@ -164,7 +164,7 @@ export default function SeedPage() {
           <div style={{ marginTop: 16, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {[
               { label: 'View Strategies', href: '/strategies' },
-              { label: 'View Profiles', href: '/car' },
+              { label: 'View Profiles', href: '/profiles' },
               { label: 'Run Decision', href: '/simulator' },
               { label: 'View Analytics', href: '/analytics' },
             ].map(({ label, href }) => (
