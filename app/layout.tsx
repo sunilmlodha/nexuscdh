@@ -12,7 +12,7 @@ import {
   ChevronRight, UserCheck, Zap, Sparkles,
   UserSearch, FlaskConical, BarChart3, Key, ScrollText, Wand2,
   Share2, Workflow, Package, Route, Gem, LineChart, ShieldCheck,
-  Boxes, GitPullRequest, TrendingUp, Megaphone,
+  Boxes, GitPullRequest, TrendingUp, Megaphone, Send,
 } from 'lucide-react';
 
 const NAV_SECTIONS = [
@@ -53,6 +53,7 @@ const NAV_SECTIONS = [
     label: 'Operations',
     items: [
       { href: '/seed',       label: 'Demo Data Seeder',  icon: Share2,          permission: null },
+      { href: '/delivery',   label: 'Delivery',          icon: Send,            permission: 'operations:read' },
       { href: '/revisions',  label: '1:1 Operations',    icon: GitPullRequest,  permission: 'operations:read' },
       { href: '/operations', label: 'Batch Operations',  icon: Activity,        permission: 'operations:read' },
       { href: '/triggers',  label: 'Event Triggers',  icon: Zap,            permission: 'triggers:read' },
