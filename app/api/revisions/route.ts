@@ -12,20 +12,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { IS_CONFIGURED, serviceSupabase } from '@/lib/supabase';
 import { writeAudit } from '@/lib/audit';
+import { ARTEFACTS, listArtefacts, applyChange, revertChange, type ChangeItem } from '@/lib/artefacts';
 
 const DEFAULT_TENANT = 'f0000000-0000-4000-a000-000000000001';
 const ENTITY = 'change_request';
 
 const TRANSITIONS: Record<string, { from: string[]; to: string; stamp?: string }> = {
-  submit:  { from: ['draft', 'rejected'], to: 'in_review', stamp: 'submitted_at' },
-  approve: { from: ['in_review'],          to: 'approved' },
-  reject:  { from: ['in_review'],          to: 'rejected' },
-  deploy:  { from: ['approved'],           to: 'deployed', stamp: 'deployed_at' },
+  submit:   { from: ['draft', 'rejected'], to: 'in_review', stamp: 'submitted_at' },
+  approve:  { from: ['in_review'],          to: 'approved' },
+  reject:   { from: ['in_review'],          to: 'rejected' },
+  deploy:   { from: ['approved'],           to: 'deployed', stamp: 'deployed_at' },
+  rollback: { from: ['deployed'],           to: 'rejected' },
 };
 
 export async function GET(req: NextRequest) {
   const tenantId = req.nextUrl.searchParams.get('tenantId') ?? DEFAULT_TENANT;
   if (!IS_CONFIGURED) return NextResponse.json({ data: [], configured: false });
+
+  // Artefact catalogue (field definitions) for the change builder
+  if (req.nextUrl.searchParams.get('catalogue') === 'true') {
+    return NextResponse.json({ artefacts: Object.values(ARTEFACTS).map(a => ({ type: a.type, label: a.label, fields: a.fields })) });
+  }
+  // List entities of a type, with their current editable-field values
+  const artefactType = req.nextUrl.searchParams.get('artefacts');
+  if (artefactType) {
+    const def = ARTEFACTS[artefactType];
+    const rows = await listArtefacts(tenantId, artefactType);
+    return NextResponse.json({ data: rows, nameField: def?.nameField ?? 'name' });
+  }
 
   const { data, error } = await serviceSupabase!
     .from('change_requests').select('*').eq('tenant_id', tenantId)
@@ -55,9 +69,44 @@ export async function POST(req: NextRequest) {
     if (!t.from.includes(cr.status))
       return NextResponse.json({ error: `Cannot ${action} a change request in '${cr.status}' state` }, { status: 409 });
 
-    const patch: Record<string, unknown> = { status: t.to, updated_at: new Date().toISOString() };
+    // Governance: segregation of duties — the approver cannot be the author
+    if (action === 'approve' && cr.created_by && cr.created_by === actor)
+      return NextResponse.json({ error: 'Segregation of duties: the author cannot approve their own change request' }, { status: 403 });
+
+    const items = (Array.isArray(cr.items) ? cr.items : []) as ChangeItem[];
+    let updatedItems = items;
+
+    // ── Deploy: apply each change to the live artefact, capturing before-state ──
+    if (action === 'deploy') {
+      const applied: ChangeItem[] = [];
+      for (const it of items) {
+        if (!it.entityType || !it.entityId) { applied.push(it); continue; }
+        try {
+          const before = await applyChange(tenantId, it);
+          applied.push({ ...it, before: before ?? it.before, appliedAt: new Date().toISOString() });
+          await writeAudit({
+            tenantId, entityType: it.entityType, entityId: it.entityId, entityName: it.entityName,
+            action: it.operation === 'archive' ? 'deleted' : 'updated',
+            changedBy: actor, before: before ?? undefined, after: it.after,
+          });
+        } catch (e: unknown) {
+          return NextResponse.json({ error: `Failed to apply change to ${it.entityName}: ${e instanceof Error ? e.message : 'error'}` }, { status: 500 });
+        }
+      }
+      updatedItems = applied;
+    }
+
+    // ── Rollback: revert each applied change from its captured before-state ─────
+    if (action === 'rollback') {
+      for (const it of items) {
+        try { await revertChange(tenantId, it); } catch { /* continue reverting the rest */ }
+      }
+    }
+
+    const patch: Record<string, unknown> = { status: t.to, updated_at: new Date().toISOString(), items: updatedItems };
     if (t.stamp) patch[t.stamp] = new Date().toISOString();
     if (action === 'approve' || action === 'reject') { patch.reviewed_by = actor; patch.review_note = body.note ?? null; }
+    if (action === 'rollback') patch.review_note = `Rolled back by ${actor}`;
 
     const { data, error } = await serviceSupabase!
       .from('change_requests').update(patch).eq('id', body.id).eq('tenant_id', tenantId).select().single();
@@ -65,7 +114,7 @@ export async function POST(req: NextRequest) {
 
     await writeAudit({
       tenantId, entityType: ENTITY, entityId: String(body.id), entityName: cr.title,
-      action: action === 'deploy' ? 'activated' : action === 'reject' ? 'paused' : 'updated',
+      action: action === 'deploy' ? 'activated' : (action === 'reject' || action === 'rollback') ? 'paused' : 'updated',
       changedBy: actor, before: cr, after: data,
     });
     return NextResponse.json({ data });
