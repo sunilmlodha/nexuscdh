@@ -362,6 +362,7 @@ interface CDHStore {
   decisions: DecisionRecord[];
   recordDecision: (d: Omit<DecisionRecord, 'id'>) => void;
   clearDecisions: () => void;
+  setDecisions: (rows: DecisionRecord[]) => void;
 
   // Hydration from Supabase
   hydrateFromDB: (data: {
@@ -466,6 +467,7 @@ export const useStore = create<CDHStore>()(
         decisions: [{ ...d, id: `DEC-${Date.now()}` }, ...s.decisions].slice(0, 1000),
       })),
       clearDecisions: () => set({ decisions: [] }),
+      setDecisions: (rows) => set({ decisions: rows }),
 
       hydrateFromDB: (data) => set(s => ({
         categories: data.categories?.length ? data.categories : s.categories,
