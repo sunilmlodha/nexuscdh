@@ -23,6 +23,7 @@ import {
 } from '@/lib/supabase';
 import { globalNBA, carFromAttributes } from '@/lib/decision-engine';
 import { stageShouldFire, exitTriggered, addDays, type JourneyStage } from '@/lib/journey-runtime';
+import { deliverForDecision } from '@/lib/deliver-service';
 
 const DEFAULT_TENANT = 'f0000000-0000-4000-a000-000000000001';
 
@@ -100,7 +101,7 @@ async function run(req: NextRequest) {
         }
 
         if (actionId) {
-          await insertDecisionLog({
+          const logId = await insertDecisionLog({
             tenant_id: tenantId, customer_id: enr.customer_id,
             // strategy_id omitted: journey-stage decisions aren't tied to a strategy row
             // (decision_log.strategy_id FKs strategies); the source is in strategy_name + trace
@@ -111,6 +112,10 @@ async function run(req: NextRequest) {
             trace: [{ step: 'journey-stage', journeyId: journey.id, stageIndex: stage, stageName: s.name, treatmentId: s.treatment_id ?? null }],
           }, tenantId);
           await incrementContactCount(tenantId, enr.customer_id, channel);
+          // Deliver via the channel adapter (best-effort; never blocks the journey)
+          try {
+            await deliverForDecision({ tenantId, decisionId: logId ?? undefined, customerId: enr.customer_id, channel, actionId, actionName, treatmentId: s.treatment_id ?? null });
+          } catch { /* delivery failure must not stall the worker */ }
           stagesFired++;
           lastFired = now.toISOString();
           history.push({ stage, name: s.name, at: now.toISOString(), outcome: 'fired', action: actionName, channel });

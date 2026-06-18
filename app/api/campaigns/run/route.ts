@@ -15,6 +15,7 @@ import {
 } from '@/lib/supabase';
 import { evaluateClause, type RuleClause } from '@/lib/arbitration';
 import { globalNBA, carFromAttributes } from '@/lib/decision-engine';
+import { deliverForDecision } from '@/lib/deliver-service';
 
 const DEFAULT_TENANT = 'f0000000-0000-4000-a000-000000000001';
 
@@ -80,16 +81,20 @@ export async function POST(req: NextRequest) {
 
     if (campaign.mode === 'segment') {
       if (!action) { suppressed++; bump('no_action'); continue; }
-      await insertDecisionLog({
+      const ch = campaign.channel ?? action.channels?.[0] ?? 'email';
+      const logId = await insertDecisionLog({
         tenant_id: tenantId, customer_id: p.customer_id,
         // strategy_id omitted: campaign decisions aren't tied to a strategy row (FK)
         strategy_name: `Campaign: ${campaign.name}`,
         action_id: action.id, action_name: action.name,
-        channel_id: campaign.channel ?? action.channels?.[0] ?? 'email',
+        channel_id: ch,
         served: true, propensity: action.base_propensity,
         customer_attributes: attrs,
         trace: [{ step: 'segment-campaign', campaignId: campaign.id, treatmentId: treatment?.id ?? null }],
       }, tenantId);
+      try {
+        await deliverForDecision({ tenantId, decisionId: logId ?? undefined, customerId: p.customer_id, channel: ch, actionId: action.id, actionName: action.name, treatmentId: campaign.treatment_id ?? null });
+      } catch { /* delivery failure must not stall the campaign */ }
       served++;
     } else {
       const nba = globalNBA(car, { strategies, actions, policies, contactCounts: zero });
