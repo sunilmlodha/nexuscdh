@@ -14,11 +14,13 @@ export default function DashboardPage() {
   const blocked  = decisions.filter(d => !d.served).length;
   const rate     = decisions.length ? ((served / decisions.length)*100).toFixed(1) : null;
   const name     = authSettings.authEnabled ? currentUser?.name?.split(' ')[0] : 'there';
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const today    = decisions.filter(d => (d.timestamp ?? '').slice(0, 10) === todayStr).length;
 
   const KPIs = [
     { label:'Active Strategies',   value: active,              total: strategies.length,  href:'/strategies', icon: GitBranch, color:'#1D4ED8' },
     { label:'Actions Configured',  value: actions.length,      total: null,               href:'/taxonomy',   icon: Layers,    color:'#7C3AED' },
-    { label:'Decisions Today',     value: decisions.length,    total: null,               href:'/simulator',  icon: Zap,       color:'#059669' },
+    { label:'Decisions Today',     value: today,               total: decisions.length,   href:'/simulator',  icon: Zap,       color:'#059669' },
     { label:'Active Channels',     value: channels.filter(c=>c.enabled).length, total: channels.length, href:'/channels', icon: Radio, color:'#D97706' },
   ];
 
