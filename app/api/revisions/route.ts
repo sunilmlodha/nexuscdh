@@ -54,9 +54,14 @@ export async function POST(req: NextRequest) {
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const tenantId = (body.tenantId as string) ?? DEFAULT_TENANT;
-  const actor    = (body.actor as string) ?? 'system';
-  const action   = body.action as string | undefined;
+  const tenantId    = (body.tenantId as string) ?? DEFAULT_TENANT;
+  const actor       = (body.actor as string) ?? 'system';
+  const actorRole   = body.actorRole as string | undefined;
+  const authEnabled = body.authEnabled === true;
+  const action      = body.action as string | undefined;
+
+  // Roles allowed to approve/deploy/rollback = those with operations:write
+  const APPROVER_ROLES = ['super_admin', 'tenant_admin', 'ops_manager'];
 
   // ── Lifecycle transition ────────────────────────────────────────────────────
   if (action && body.id) {
@@ -69,9 +74,15 @@ export async function POST(req: NextRequest) {
     if (!t.from.includes(cr.status))
       return NextResponse.json({ error: `Cannot ${action} a change request in '${cr.status}' state` }, { status: 409 });
 
-    // Governance: segregation of duties — the approver cannot be the author
-    if (action === 'approve' && cr.created_by && cr.created_by === actor)
-      return NextResponse.json({ error: 'Segregation of duties: the author cannot approve their own change request' }, { status: 403 });
+    // Governance (enforced only when auth is enabled; auth off = full access)
+    if (authEnabled) {
+      const privileged = ['approve', 'deploy', 'rollback'].includes(action);
+      if (privileged && actorRole && !APPROVER_ROLES.includes(actorRole))
+        return NextResponse.json({ error: `Your role (${actorRole}) lacks operations:write — only Ops Manager / Tenant Admin can ${action} change requests` }, { status: 403 });
+      // Segregation of duties — the approver cannot be the author
+      if (action === 'approve' && cr.created_by && cr.created_by === actor)
+        return NextResponse.json({ error: 'Segregation of duties: the author cannot approve their own change request' }, { status: 403 });
+    }
 
     const items = (Array.isArray(cr.items) ? cr.items : []) as ChangeItem[];
     let updatedItems = items;
