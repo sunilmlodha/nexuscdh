@@ -27,6 +27,7 @@ const NAV_SECTIONS = [
       { href: '/journeys',   label: 'Customer Journeys',    icon: Route,    permission: 'strategies:read' },
       { href: '/campaigns',  label: 'Campaigns',            icon: Megaphone,permission: 'strategies:read' },
       { href: '/strategies', label: 'Strategies',           icon: GitBranch,permission: 'strategies:read' },
+      { href: '/nba-designer',label: 'NBA Designer',        icon: Route,    permission: 'strategies:read' },
       { href: '/arbitration',label: 'Arbitration',          icon: Scale,    permission: 'strategies:read' },
       { href: '/channels',  label: 'Channels',       icon: Radio,           permission: 'channels:read' },
       { href: '/containers',label: 'Real-Time Containers', icon: Boxes,    permission: 'channels:read' },
