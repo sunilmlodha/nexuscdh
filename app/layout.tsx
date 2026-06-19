@@ -4,7 +4,9 @@ import './globals.css';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { useAuth, usePermission, ROLE_LABELS } from '@/lib/auth';
+import { useAuth, usePermission, ROLE_LABELS, can, type Permission } from '@/lib/auth';
+import SessionBridge from '@/components/SessionBridge';
+import { createClient, AUTH_AVAILABLE } from '@/lib/supabase-browser';
 import HydrateStore from '@/components/HydrateStore';
 import {
   LayoutDashboard, Layers, GitBranch, Radio, Shield, Scale,
@@ -120,10 +122,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
           {/* Nav sections */}
           <nav style={{ flex: 1, padding: '8px 0' }}>
-            {NAV_SECTIONS.map(section => (
+            {NAV_SECTIONS.map(section => {
+              // RBAC: only show offerings the current role can access (auth off = all)
+              const visible = section.items.filter(it => !it.permission || can(currentUser, it.permission as Permission, authSettings.authEnabled));
+              if (visible.length === 0) return null;
+              return (
               <div key={section.label} className="sidebar-section">
                 <div className="sidebar-section-label">{section.label}</div>
-                {section.items.map(({ href, label, icon: Icon }) => {
+                {visible.map(({ href, label, icon: Icon }) => {
                   const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
                   return (
                     <Link key={href} href={href} className="nav-item" data-active={active ? true : undefined}>
@@ -133,7 +139,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   );
                 })}
               </div>
-            ))}
+              );
+            })}
           </nav>
 
           {/* User footer */}
@@ -148,7 +155,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <div className="role-chip" style={{ marginTop:2 }}>{ROLE_LABELS[user.role]}</div>
                 </div>
                 {authSettings.authEnabled && (
-                  <button onClick={() => { logout(); router.push('/login'); }}
+                  <button onClick={async () => { if (AUTH_AVAILABLE) { try { await createClient().auth.signOut(); } catch {} } logout(); router.push('/login'); }}
                     style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(255,255,255,0.4)', padding:4 }}
                     title="Sign out">
                     <LogOut size={13} />
@@ -166,6 +173,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Main */}
         <main className="main-content">
           <HydrateStore />
+          <SessionBridge />
           {children}
         </main>
 
