@@ -97,6 +97,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     name: 'Demo User', role: 'tenant_admin' as const, avatarInitials: 'DU'
   };
 
+  async function signOut() {
+    if (AUTH_AVAILABLE) { try { await createClient().auth.signOut(); } catch { /* ignore */ } }
+    logout();                       // clear local session
+    router.push('/login');
+  }
+
   return (
     <html lang="en">
       <head>
@@ -152,15 +158,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </div>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize:12, fontWeight:600, color:'rgba(255,255,255,0.85)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user.name}</div>
-                  <div className="role-chip" style={{ marginTop:2 }}>{ROLE_LABELS[user.role]}</div>
+                  {(user as any).email
+                    ? <div style={{ fontSize:10, color:'rgba(255,255,255,0.45)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{(user as any).email}</div>
+                    : <div className="role-chip" style={{ marginTop:2 }}>{ROLE_LABELS[user.role]}</div>}
                 </div>
-                {authSettings.authEnabled && (
-                  <button onClick={async () => { if (AUTH_AVAILABLE) { try { await createClient().auth.signOut(); } catch {} } logout(); router.push('/login'); }}
-                    style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(255,255,255,0.4)', padding:4 }}
-                    title="Sign out">
-                    <LogOut size={13} />
-                  </button>
-                )}
+                <button onClick={signOut}
+                  style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(255,255,255,0.5)', padding:4, display:'flex', alignItems:'center' }}
+                  title={authSettings.authEnabled ? 'Sign out' : 'Sign out (go to login)'}>
+                  <LogOut size={14} />
+                </button>
               </div>
             )}
             <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:10 }}>
