@@ -50,12 +50,23 @@ export async function POST(req: NextRequest) {
   if (body.role && !VALID_ROLES.includes(body.role as string))
     return NextResponse.json({ error: `Invalid role: ${body.role}` }, { status: 422 });
 
-  const payload = {
-    tenant_id: tenantId, email, name: body.name ?? null,
-    role: body.role ?? 'read_only', status: body.status ?? 'active', updated_at: new Date().toISOString(),
+  const payload: Record<string, unknown> = {
+    tenant_id: tenantId, email, role: body.role ?? 'read_only',
+    status: body.status ?? 'active', updated_at: new Date().toISOString(),
   };
-  const { data, error } = await serviceSupabase!
-    .from('user_roles').upsert(payload, { onConflict: 'tenant_id,email' }).select().single();
+  if (body.name !== undefined) payload.name = body.name;
+
+  // Manual upsert keyed on lower(email) (the table's unique index is functional,
+  // so ON CONFLICT can't target it).
+  const { data: existing } = await serviceSupabase!
+    .from('user_roles').select('id').eq('tenant_id', tenantId).ilike('email', email).maybeSingle();
+
+  let data: Record<string, unknown> | null, error: { message: string } | null;
+  if (existing) {
+    ({ data, error } = await serviceSupabase!.from('user_roles').update(payload).eq('id', existing.id).select().single());
+  } else {
+    ({ data, error } = await serviceSupabase!.from('user_roles').insert(payload).select().single());
+  }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await writeAudit({ tenantId, entityType: 'user_role', entityId: String(data!.id), entityName: email, action: 'updated', changedBy: 'rbac-ui', after: data });

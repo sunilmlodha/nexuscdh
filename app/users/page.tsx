@@ -1,11 +1,96 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth, AppUser, ROLE_LABELS, Role, ROLE_PERMISSIONS } from '@/lib/auth';
 import { usePermission } from '@/lib/auth';
-import { Plus, Edit2, Trash2, X, Save, CheckCircle2, Shield, UserCheck } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, CheckCircle2, Shield, UserCheck, KeyRound, RefreshCw } from 'lucide-react';
 
+const TENANT_ID = 'f0000000-0000-4000-a000-000000000001';
 const ROLES: Role[] = ['super_admin','tenant_admin','strategy_manager','campaign_analyst','channel_manager','data_scientist','ops_manager','read_only'];
 const STATUS_BADGE: Record<string, string> = { active:'badge-green', invited:'badge-blue', disabled:'badge-gray' };
+
+interface SsoUser { id: string; email: string; name?: string; role: Role; status: string; last_login?: string; }
+
+function SsoUsersPanel({ canWrite }: { canWrite: boolean }) {
+  const [rows, setRows] = useState<SsoUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [configured, setConfigured] = useState(true);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [err, setErr] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true); setErr('');
+    try {
+      const res = await fetch(`/api/user-roles?tenantId=${TENANT_ID}`);
+      const j = await res.json();
+      if (j.configured === false) { setConfigured(false); setRows([]); }
+      else if (j.error) { setErr('user_roles table not found — run schema_v14.sql to enable SSO RBAC.'); setRows([]); }
+      else setRows(j.data ?? []);
+    } catch (e: unknown) { setErr(e instanceof Error ? e.message : 'Failed'); }
+    finally { setLoading(false); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  async function setRole(u: SsoUser, role: Role) {
+    setSavingId(u.id);
+    try {
+      const res = await fetch('/api/user-roles', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenantId: TENANT_ID, email: u.email, name: u.name, role, status: u.status }),
+      });
+      if (!res.ok) { const j = await res.json(); setErr(j.error ?? 'Update failed'); }
+      else { setRows(rs => rs.map(r => r.id === u.id ? { ...r, role } : r)); }
+    } finally { setSavingId(null); }
+  }
+  async function remove(u: SsoUser) {
+    if (!confirm(`Remove ${u.email}? They'll default to read_only on next sign-in.`)) return;
+    await fetch(`/api/user-roles?id=${u.id}&tenantId=${TENANT_ID}`, { method: 'DELETE' });
+    load();
+  }
+
+  return (
+    <div className="card" style={{ padding:0, overflow:'hidden' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 18px', borderBottom:'1px solid var(--border)' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <KeyRound size={15} style={{ color:'var(--brand-accent)' }} />
+          <span style={{ fontWeight:700, fontSize:14 }}>Signed-in users (SSO)</span>
+          <span style={{ fontSize:12, color:'var(--text-muted)' }}>· live roles from Google / Microsoft sign-in</span>
+        </div>
+        <button onClick={load} className="btn btn-ghost btn-sm" style={{ fontSize:12 }}><RefreshCw size={12}/> Refresh</button>
+      </div>
+      {err && <div style={{ padding:'10px 18px', fontSize:12, color:'var(--danger)' }}>{err}</div>}
+      {loading ? <div style={{ padding:24, textAlign:'center', color:'var(--text-muted)', fontSize:13 }}>Loading…</div> :
+        !configured ? <div style={{ padding:24, textAlign:'center', color:'var(--text-muted)', fontSize:13 }}>Supabase not configured.</div> :
+        rows.length === 0 ? <div style={{ padding:24, textAlign:'center', color:'var(--text-muted)', fontSize:13 }}>No SSO users yet. Once someone signs in with Google or Microsoft they appear here (default role: read_only) for you to promote.</div> : (
+        <table className="table">
+          <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Last login</th><th>Permissions</th><th></th></tr></thead>
+          <tbody>
+            {rows.map(u => (
+              <tr key={u.id}>
+                <td>
+                  <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                    <div style={{ width:32, height:32, borderRadius:'50%', background:'var(--brand-accent)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'white', flexShrink:0 }}>{String(u.name ?? u.email).slice(0,2).toUpperCase()}</div>
+                    <div><div style={{ fontWeight:600, fontSize:13 }}>{u.name ?? u.email}</div><div style={{ fontSize:12, color:'var(--text-muted)' }}>{u.email}</div></div>
+                  </div>
+                </td>
+                <td>
+                  {canWrite ? (
+                    <select className="input select" style={{ fontSize:12, padding:'4px 8px', width:'auto' }} value={u.role} disabled={savingId===u.id} onChange={e => setRole(u, e.target.value as Role)}>
+                      {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                    </select>
+                  ) : <span className="badge badge-gray">{ROLE_LABELS[u.role]}</span>}
+                </td>
+                <td><span className={`badge ${STATUS_BADGE[u.status] ?? 'badge-gray'}`}>{u.status}</span></td>
+                <td style={{ fontSize:12, color:'var(--text-muted)' }}>{u.last_login ? new Date(u.last_login).toLocaleString() : 'Never'}</td>
+                <td><span style={{ fontSize:12, color:'var(--text-muted)' }}>{ROLE_PERMISSIONS[u.role]?.length ?? 0} perms</span></td>
+                <td>{canWrite && <button onClick={()=>remove(u)} className="btn btn-ghost btn-sm" style={{ padding:'4px 8px', color:'var(--danger)' }}><Trash2 size={12}/></button>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
 
 function UserModal({ user, onClose }: { user?: AppUser; onClose: () => void }) {
   const { addUser, updateUser } = useAuth();
@@ -75,9 +160,14 @@ export default function UsersPage() {
       <div style={{ padding:'0 24px 24px', display:'flex', flexDirection:'column', gap:20 }}>
 
         {!authSettings.authEnabled && (
-          <div className="alert alert-warning">Authentication is disabled. Enable it in <strong>Settings → Authentication</strong> to enforce RBAC roles.</div>
+          <div className="alert alert-warning">Authentication is disabled — roles aren’t enforced yet. Configure SSO (see <strong>docs/AUTH_SETUP.md</strong>); once users sign in, assign their roles below.</div>
         )}
 
+        {/* Live SSO users + role assignment */}
+        <SsoUsersPanel canWrite={canWrite} />
+
+        {/* Demo (local) users */}
+        <div style={{ fontSize:12, fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginTop:4 }}>Demo users (local)</div>
         <div className="card" style={{ padding:0, overflow:'hidden' }}>
           <table className="table">
             <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Last login</th><th>Permissions</th><th></th></tr></thead>
