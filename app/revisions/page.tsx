@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { GitPullRequest, Plus, X, Send, CheckCircle2, XCircle, Rocket, Clock, Trash2, Undo2, ArrowRight } from 'lucide-react';
+import { GitPullRequest, Plus, X, Send, CheckCircle2, XCircle, Rocket, Clock, Trash2, Undo2, ArrowRight, ShieldCheck } from 'lucide-react';
+import { useAuth, usePermission, ROLE_LABELS } from '@/lib/auth';
 
 const TENANT_ID = 'f0000000-0000-4000-a000-000000000001';
-const ACTOR_AUTHOR = 'marketer';   // demo identities — in prod these come from auth
-const ACTOR_APPROVER = 'ops-manager';
 const panel: React.CSSProperties = { background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12 };
 const input: React.CSSProperties = { width: '100%', padding: '7px 9px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 13, boxSizing: 'border-box' };
 const lbl: React.CSSProperties = { display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 5 };
@@ -28,6 +27,13 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
 const STAGES = ['draft', 'in_review', 'approved', 'deployed'];
 
 export default function RevisionsPage() {
+  const { currentUser, authSettings } = useAuth();
+  const canApprove = usePermission('operations:write');
+  const actor       = currentUser?.email ?? 'system';
+  const actorName   = currentUser?.name ?? 'System';
+  const actorRole   = currentUser?.role;
+  const authEnabled = authSettings.authEnabled;
+
   const [items, setItems] = useState<ChangeRequest[]>([]);
   const [catalogue, setCatalogue] = useState<Catalogue[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,17 +111,16 @@ export default function RevisionsPage() {
     try {
       await fetch('/api/revisions', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, description: desc, items: staged, tenantId: TENANT_ID, actor: ACTOR_AUTHOR }),
+        body: JSON.stringify({ title, description: desc, items: staged, tenantId: TENANT_ID, actor }),
       });
       setModal(false); setTitle(''); setDesc(''); setStaged([]); load();
     } finally { setSaving(false); }
   }
 
   async function transition(id: string, action: string) {
-    const actor = action === 'approve' || action === 'reject' ? ACTOR_APPROVER : ACTOR_AUTHOR;
     const res = await fetch('/api/revisions', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, action, tenantId: TENANT_ID, actor }),
+      body: JSON.stringify({ id, action, tenantId: TENANT_ID, actor, actorRole, authEnabled }),
     });
     if (!res.ok) { const j = await res.json(); setError(j.error ?? 'Action failed'); }
     load();
@@ -135,6 +140,16 @@ export default function RevisionsPage() {
         <button onClick={() => { setModal(true); setStaged([]); setError(''); }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, background: 'var(--brand-accent)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
           <Plus size={14} /> New Change Request
         </button>
+      </div>
+
+      {/* Who's acting + governance posture */}
+      <div style={{ ...panel, padding: '10px 16px', margin: '14px 0', display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
+        <ShieldCheck size={15} color={canApprove ? '#22c55e' : 'var(--text-muted)'} />
+        <span style={{ color: 'var(--text-secondary)' }}>Acting as <strong style={{ color: 'var(--text-primary)' }}>{actorName}</strong>{actorRole && <span style={{ color: 'var(--text-muted)' }}> · {ROLE_LABELS[actorRole]}</span>}</span>
+        <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
+          {!authEnabled ? 'Auth disabled — full access (governance not enforced)'
+            : canApprove ? 'Can author, approve & deploy' : 'Can author & submit; approval needs Ops Manager / Tenant Admin'}
+        </span>
       </div>
 
       {error && <div style={{ ...panel, padding: 12, marginTop: 14, borderLeft: '3px solid #ef4444', fontSize: 13, color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between' }}><span>{error}</span><button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={14} /></button></div>}
@@ -209,10 +224,11 @@ export default function RevisionsPage() {
                 {cr.review_note && <span style={{ fontStyle: 'italic' }}> · {cr.review_note}</span>}
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
                   {(cr.status === 'draft' || cr.status === 'rejected') && <Action onClick={() => transition(cr.id, 'submit')} icon={<Send size={12} />} label="Submit" color="#f59e0b" />}
-                  {cr.status === 'in_review' && <Action onClick={() => transition(cr.id, 'approve')} icon={<CheckCircle2 size={12} />} label="Approve" color="#3b82f6" />}
-                  {cr.status === 'in_review' && <Action onClick={() => transition(cr.id, 'reject')} icon={<XCircle size={12} />} label="Reject" color="#ef4444" />}
-                  {cr.status === 'approved' && <Action onClick={() => transition(cr.id, 'deploy')} icon={<Rocket size={12} />} label="Deploy" color="#22c55e" />}
-                  {cr.status === 'deployed' && <Action onClick={() => transition(cr.id, 'rollback')} icon={<Undo2 size={12} />} label="Rollback" color="#ef4444" />}
+                  {cr.status === 'in_review' && canApprove && !(authEnabled && cr.created_by === actor) && <Action onClick={() => transition(cr.id, 'approve')} icon={<CheckCircle2 size={12} />} label="Approve" color="#3b82f6" />}
+                  {cr.status === 'in_review' && authEnabled && cr.created_by === actor && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>awaiting another approver</span>}
+                  {cr.status === 'in_review' && canApprove && <Action onClick={() => transition(cr.id, 'reject')} icon={<XCircle size={12} />} label="Reject" color="#ef4444" />}
+                  {cr.status === 'approved' && canApprove && <Action onClick={() => transition(cr.id, 'deploy')} icon={<Rocket size={12} />} label="Deploy" color="#22c55e" />}
+                  {cr.status === 'deployed' && canApprove && <Action onClick={() => transition(cr.id, 'rollback')} icon={<Undo2 size={12} />} label="Rollback" color="#ef4444" />}
                 </div>
               </div>
             </div>
