@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchStrategies, upsertStrategy, insertConfigAudit, IS_CONFIGURED, supabase, serviceSupabase } from '@/lib/supabase';
+import { requireAuth } from '@/lib/api-guard';
 
 export async function GET(req: NextRequest) {
   const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'f0000000-0000-4000-a000-000000000001';
@@ -11,12 +12,15 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!IS_CONFIGURED) return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 });
 
+  const guard = await requireAuth('strategies:write');
+  if (!guard.ok) return guard.res;
+
   let body: Record<string, unknown>;
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const tenantId  = (body.tenantId as string) ?? 'f0000000-0000-4000-a000-000000000001';
-  const changedBy = (body.changedBy as string) ?? undefined;
+  const tenantId  = guard.ctx.tenantId;                                 // from session, not body (non-spoofable)
+  const changedBy = guard.ctx.email ?? (body.changedBy as string) ?? undefined;
   const isUpdate  = Boolean(body.id);
 
   // Strip transport-only fields that are not columns on `strategies`, otherwise

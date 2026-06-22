@@ -16,6 +16,7 @@ import {
 import { evaluateClause, type RuleClause } from '@/lib/arbitration';
 import { globalNBA, carFromAttributes } from '@/lib/decision-engine';
 import { deliverForDecision } from '@/lib/deliver-service';
+import { requireAuth } from '@/lib/api-guard';
 
 const DEFAULT_TENANT = 'f0000000-0000-4000-a000-000000000001';
 
@@ -30,10 +31,12 @@ function offerLive(t: { offer_state?: string; effective_from?: string | null; ef
 
 export async function POST(req: NextRequest) {
   if (!IS_CONFIGURED) return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 });
+  const guard = await requireAuth('strategies:write');
+  if (!guard.ok) return guard.res;
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
-  const tenantId = (body.tenantId as string) ?? DEFAULT_TENANT;
+  const tenantId = guard.ctx.tenantId;
   const id = body.id as string;
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
