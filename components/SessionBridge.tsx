@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/auth';
  */
 export default function SessionBridge() {
   const login = useAuth(s => s.login);
+  const logout = useAuth(s => s.logout);
   const updateAuthSettings = useAuth(s => s.updateAuthSettings);
   const done = useRef(false);
 
@@ -27,10 +28,16 @@ export default function SessionBridge() {
             status: 'active', createdAt: new Date().toISOString(),
           });
           updateAuthSettings({ authEnabled: true });
+        } else if (d?.enforced) {
+          // Server enforces auth but there's no session → turn on the client
+          // gate so the layout redirects to /login (no silent 401s on writes).
+          logout();
+          updateAuthSettings({ authEnabled: true });
         }
+        // else: demo mode, leave as-is (full access)
       })
       .catch(() => {});
-  }, [login, updateAuthSettings]);
+  }, [login, logout, updateAuthSettings]);
 
   return null;
 }
