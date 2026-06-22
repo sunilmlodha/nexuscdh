@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { IS_CONFIGURED, serviceSupabase, fetchCustomerProfiles } from '@/lib/supabase';
 import { evaluateClause, type RuleClause } from '@/lib/arbitration';
 import { addDays, type JourneyStage } from '@/lib/journey-runtime';
+import { requireAuth } from '@/lib/api-guard';
 
 const DEFAULT_TENANT = 'f0000000-0000-4000-a000-000000000001';
 
@@ -36,11 +37,13 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   if (!IS_CONFIGURED) return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 });
+  const guard = await requireAuth('strategies:write');
+  if (!guard.ok) return guard.res;
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const tenantId  = (body.tenantId as string) ?? DEFAULT_TENANT;
+  const tenantId  = guard.ctx.tenantId;
   const journeyId = body.journeyId as string;
   if (!journeyId) return NextResponse.json({ error: 'journeyId required' }, { status: 400 });
 

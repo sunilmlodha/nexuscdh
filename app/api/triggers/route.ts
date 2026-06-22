@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchEventTriggers, upsertEventTrigger, IS_CONFIGURED, supabase, serviceSupabase } from '@/lib/supabase';
+import { requireAuth } from '@/lib/api-guard';
 
 export async function GET(req: NextRequest) {
   const tenantId = req.nextUrl.searchParams.get('tenantId') ?? 'f0000000-0000-4000-a000-000000000001';
@@ -10,11 +11,13 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   if (!IS_CONFIGURED) return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 });
+  const guard = await requireAuth('triggers:write');
+  if (!guard.ok) return guard.res;
   let body: Record<string, unknown>;
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const tenantId = (body.tenantId as string) ?? 'f0000000-0000-4000-a000-000000000001';
+  const tenantId = guard.ctx.tenantId;
   if (!body.name || !body.event_type) {
     return NextResponse.json({ error: 'name and event_type required' }, { status: 400 });
   }
@@ -28,9 +31,11 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   if (!IS_CONFIGURED) return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 });
+  const guard = await requireAuth('triggers:write');
+  if (!guard.ok) return guard.res;
   const id = req.nextUrl.searchParams.get('id') ?? '';
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
-  const { error } = await serviceSupabase!.from('event_triggers').delete().eq('id', id);
+  const { error } = await serviceSupabase!.from('event_triggers').delete().eq('id', id).eq('tenant_id', guard.ctx.tenantId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }
