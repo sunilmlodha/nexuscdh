@@ -6,16 +6,17 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
 import { serviceSupabase, IS_CONFIGURED } from '@/lib/supabase';
+import { ENFORCE_AUTH } from '@/lib/tenant';
 
 const TENANT = 'f0000000-0000-4000-a000-000000000001';
 
 export async function GET() {
-  if (!IS_CONFIGURED) return NextResponse.json({ authenticated: false, configured: false });
+  if (!IS_CONFIGURED) return NextResponse.json({ authenticated: false, enforced: ENFORCE_AUTH, configured: false });
 
   let user = null;
   try { ({ data: { user } } = await createServerSupabase().auth.getUser()); }
-  catch { return NextResponse.json({ authenticated: false }); }
-  if (!user?.email) return NextResponse.json({ authenticated: false });
+  catch { return NextResponse.json({ authenticated: false, enforced: ENFORCE_AUTH }); }
+  if (!user?.email) return NextResponse.json({ authenticated: false, enforced: ENFORCE_AUTH });
 
   const email = user.email.toLowerCase();
   let role = 'read_only', name = (user.user_metadata?.full_name as string) ?? user.email, status = 'active';
@@ -25,5 +26,5 @@ export async function GET() {
     if (data) { role = data.role; name = data.name ?? name; status = data.status; }
   }
 
-  return NextResponse.json({ authenticated: true, email, name, role, status });
+  return NextResponse.json({ authenticated: true, enforced: ENFORCE_AUTH, email, name, role, status });
 }
