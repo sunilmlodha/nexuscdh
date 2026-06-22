@@ -52,6 +52,18 @@ Provider secrets live in Supabase, not in the app.
   1:1 Operations requires `operations:write` (Ops Manager / Tenant Admin /
   Super Admin), with segregation of duties.
 
+## Database-level tenant isolation (RLS) — activation order
+App-layer authz is enforced now (every write route runs `requireAuth`, tenant
+comes from the session). For *database-level* isolation:
+1. Run `supabase/schema_v15_rls.sql` — safe anytime; it's a no-op today because
+   the service-role key bypasses RLS. It adds `app_current_tenant()` + a
+   `tenant_isolation` policy on every tenant table.
+2. Set `ENFORCE_AUTH=true` (only after SSO providers are live).
+3. Adopt `dbFor(ctx)` (lib/db.ts) in route reads/writes — for authenticated
+   requests it uses the session client, so Postgres denies cross-tenant rows
+   even if app code forgets a tenant filter. Roll out per route and verify with
+   real sessions.
+
 ## Roles → access (summary)
 - **Super Admin / Tenant Admin** — everything, incl. approvals & user management
 - **Ops Manager** — operations + approvals (operations:write)
