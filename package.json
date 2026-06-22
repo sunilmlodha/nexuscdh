@@ -9,7 +9,10 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "migrate": "node scripts/migrate.mjs",
+    "migrate:status": "node scripts/migrate.mjs status",
+    "migrate:baseline": "node scripts/migrate.mjs baseline"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",
@@ -25,8 +28,10 @@
   },
   "devDependencies": {
     "@types/node": "^20",
+    "@types/pg": "^8.20.0",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "pg": "^8.22.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5",
