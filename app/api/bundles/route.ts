@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { IS_CONFIGURED, serviceSupabase } from '@/lib/supabase';
 import { writeAudit, detectAction } from '@/lib/audit';
+import { requireAuth } from '@/lib/api-guard';
 
 const DEFAULT_TENANT = 'f0000000-0000-4000-a000-000000000001';
 const ENTITY = 'bundle';
@@ -28,13 +29,15 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   if (!IS_CONFIGURED) return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 });
+  const guard = await requireAuth('strategies:write');
+  if (!guard.ok) return guard.res;
 
   let body: Record<string, unknown>;
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const tenantId = (body.tenantId as string) ?? DEFAULT_TENANT;
-  const actor    = (body.actor as string) ?? 'system';
+  const tenantId = guard.ctx.tenantId;
+  const actor    = guard.ctx.email ?? (body.actor as string) ?? 'system';
 
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 422 });
@@ -83,9 +86,11 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   if (!IS_CONFIGURED) return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 });
+  const guard = await requireAuth('strategies:write');
+  if (!guard.ok) return guard.res;
   const id = req.nextUrl.searchParams.get('id');
-  const tenantId = req.nextUrl.searchParams.get('tenantId') ?? DEFAULT_TENANT;
-  const actor = req.nextUrl.searchParams.get('actor') ?? 'system';
+  const tenantId = guard.ctx.tenantId;
+  const actor = guard.ctx.email ?? req.nextUrl.searchParams.get('actor') ?? 'system';
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
   const { data: before } = await serviceSupabase!

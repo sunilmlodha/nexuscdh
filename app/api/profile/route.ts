@@ -4,6 +4,7 @@ import {
   upsertCustomerProfile, deleteCustomerProfile,
   IS_CONFIGURED,
   serviceSupabase } from '@/lib/supabase';
+import { requireAuth } from '@/lib/api-guard';
 
 const DEFAULT_TENANT = 'f0000000-0000-4000-a000-000000000001';
 
@@ -56,6 +57,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   if (!IS_CONFIGURED) return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 });
+  const guard = await requireAuth('profiles:write');
+  if (!guard.ok) return guard.res;
 
   let body: unknown;
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
@@ -68,7 +71,7 @@ export async function POST(req: NextRequest) {
     null;
 
   if (bulkRecords) {
-    const tenantId = (asObj.tenantId as string) ?? DEFAULT_TENANT;
+    const tenantId = guard.ctx.tenantId;
     const results: { ok: number; errors: string[] } = { ok: 0, errors: [] };
 
     for (const rec of bulkRecords) {
@@ -96,8 +99,8 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Single profile mode ─────────────────────────────────────────────────────
-  const { customerId, attributes, tenantId = DEFAULT_TENANT } =
-    asObj as { customerId?: string; attributes?: Record<string, unknown>; tenantId?: string };
+  const { customerId, attributes } = asObj as { customerId?: string; attributes?: Record<string, unknown> };
+  const tenantId = guard.ctx.tenantId;
   if (!customerId) return NextResponse.json({ error: 'customerId required' }, { status: 400 });
 
   await upsertCustomerProfile(tenantId, customerId, attributes ?? {});
@@ -107,12 +110,14 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   if (!IS_CONFIGURED) return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 });
+  const guard = await requireAuth('profiles:write');
+  if (!guard.ok) return guard.res;
 
   // NOTE: customer profiles are HARD-deleted by design — this is the GDPR
   // "right to erasure" path and must genuinely remove PII (unlike treatments/
   // bundles/journeys, which soft-delete for audit/recovery).
   const customerId = req.nextUrl.searchParams.get('customerId') ?? '';
-  const tenantId   = req.nextUrl.searchParams.get('tenantId') ?? DEFAULT_TENANT;
+  const tenantId   = guard.ctx.tenantId;
   if (!customerId) return NextResponse.json({ error: 'customerId required' }, { status: 400 });
 
   const deletedDecisions = await deleteCustomerProfile(tenantId, customerId);
