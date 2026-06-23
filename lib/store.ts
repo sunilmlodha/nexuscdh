@@ -478,6 +478,25 @@ export const useStore = create<CDHStore>()(
         audiences:  data.audiences?.length  ? data.audiences  : s.audiences,
       })),
     }),
-    { name: 'nexuscdh-enterprise-store' }
+    {
+      name: 'nexuscdh-enterprise-store',
+      version: 2,
+      // Server-authoritative state re-architecture (#10): the API is the source of
+      // truth for domain data. We persist ONLY genuinely client-local state to
+      // localStorage; the rest (categories, topics, actions, policies, audiences,
+      // strategies, decisions) is excluded so HydrateStore always repopulates it
+      // fresh from the server on load — no more stale client cache diverging from
+      // the database. `channels` and `models` persist for now as they have no
+      // server hydration endpoint yet.
+      partialize: (s) => ({ tenant: s.tenant, channels: s.channels, models: s.models }),
+      // v1 stores persisted everything; drop that stale snapshot on upgrade.
+      migrate: (persisted: unknown, version: number) => {
+        if (version < 2 && persisted && typeof persisted === 'object') {
+          const p = persisted as Record<string, unknown>;
+          return { tenant: p.tenant, channels: p.channels, models: p.models };
+        }
+        return persisted as Partial<CDHStore>;
+      },
+    }
   )
 );
