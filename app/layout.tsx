@@ -39,6 +39,7 @@ const NAV_SECTIONS = [
     items: [
       { href: '/audiences', label: 'Audiences',         icon: Users,        permission: 'audiences:read' },
       { href: '/models',    label: 'Adaptive Models',   icon: Brain,        permission: 'models:read' },
+      { href: '/model-ops', label: 'Model Ops',         icon: Boxes,        permission: 'models:read' },
       { href: '/value-finder',label: 'Value Finder',    icon: Gem,          permission: 'analytics:read' },
       { href: '/scenario',  label: 'Scenario Planner',  icon: LineChart,    permission: 'simulator:read' },
       { href: '/bias',      label: 'Ethical Bias Check',icon: ShieldCheck,  permission: 'analytics:read' },
