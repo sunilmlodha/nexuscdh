@@ -75,19 +75,20 @@ const NAV_SECTIONS = [
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname  = usePathname();
   const router    = useRouter();
-  const { currentUser, authSettings, logout } = useAuth();
+  const { currentUser, authSettings, logout, authReady } = useAuth();
 
   // Apply theme
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', authSettings.theme);
   }, [authSettings.theme]);
 
-  // Redirect to login if auth enabled and no user
+  // Redirect to login only AFTER the session check resolves (authReady),
+  // so a valid SSO session isn't bounced before SessionBridge logs the user in.
   useEffect(() => {
-    if (authSettings.authEnabled && !currentUser && pathname !== '/login') {
+    if (authReady && authSettings.authEnabled && !currentUser && pathname !== '/login') {
       router.push('/login');
     }
-  }, [authSettings.authEnabled, currentUser, pathname]);
+  }, [authReady, authSettings.authEnabled, currentUser, pathname]);
 
   const isLogin = pathname === '/login';
   if (isLogin) return (

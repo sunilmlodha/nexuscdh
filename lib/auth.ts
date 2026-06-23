@@ -52,6 +52,10 @@ interface AuthStore {
   login: (user: AppUser) => void;
   logout: () => void;
 
+  // Session-check gate (not persisted): true once SessionBridge has resolved /api/me.
+  authReady: boolean;
+  setAuthReady: (v: boolean) => void;
+
   // User management
   users: AppUser[];
   addUser: (u: Omit<AppUser, 'id' | 'createdAt'>) => AppUser;
@@ -80,6 +84,9 @@ export const useAuth = create<AuthStore>()(
       login:  (user) => set({ currentUser: { ...user, lastLogin: new Date().toISOString() } }),
       logout: () => set({ currentUser: null }),
 
+      authReady: false,
+      setAuthReady: (v) => set({ authReady: v }),
+
       users: DEMO_USERS,
       addUser: (u) => {
         const user: AppUser = { ...u, id: `u-${Date.now()}`, createdAt: new Date().toISOString() };
@@ -89,7 +96,11 @@ export const useAuth = create<AuthStore>()(
       updateUser: (id, patch) => set(s => ({ users: s.users.map(u => u.id===id?{...u,...patch}:u) })),
       removeUser: (id) => set(s => ({ users: s.users.filter(u => u.id!==id) })),
     }),
-    { name: 'nexuscdh-auth' }
+    {
+      name: 'nexuscdh-auth',
+      // authReady is a per-load gate — never persist it (else it's stale-true on boot)
+      partialize: (s) => ({ authSettings: s.authSettings, currentUser: s.currentUser, users: s.users }),
+    }
   )
 );
 

@@ -13,6 +13,7 @@ export default function SessionBridge() {
   const login = useAuth(s => s.login);
   const logout = useAuth(s => s.logout);
   const updateAuthSettings = useAuth(s => s.updateAuthSettings);
+  const setAuthReady = useAuth(s => s.setAuthReady);
   const done = useRef(false);
 
   useEffect(() => {
@@ -28,16 +29,17 @@ export default function SessionBridge() {
             status: 'active', createdAt: new Date().toISOString(),
           });
           updateAuthSettings({ authEnabled: true });
-        } else if (d?.enforced) {
-          // Server enforces auth but there's no session → turn on the client
-          // gate so the layout redirects to /login (no silent 401s on writes).
-          logout();
-          updateAuthSettings({ authEnabled: true });
+        } else {
+          // No session. Reconcile the client gate with the SERVER's real state:
+          // enforced → require login; not enforced → demo mode (clears any stale
+          // authEnabled=true left over from a previous enforced session).
+          updateAuthSettings({ authEnabled: !!d?.enforced });
+          if (d?.enforced) logout();
         }
-        // else: demo mode, leave as-is (full access)
       })
-      .catch(() => {});
-  }, [login, logout, updateAuthSettings]);
+      .catch(() => { /* leave as-is */ })
+      .finally(() => setAuthReady(true));
+  }, [login, logout, updateAuthSettings, setAuthReady]);
 
   return null;
 }
