@@ -62,6 +62,7 @@ const NAV_SECTIONS = [
       { href: '/observability', label: 'Observability',   icon: Gauge,           permission: 'operations:read' },
       { href: '/jobs',       label: 'Decision Jobs',     icon: ListChecks,      permission: 'operations:read' },
       { href: '/platform',   label: 'Platform',          icon: SlidersHorizontal, permission: 'settings:read' },
+      { href: '/compliance', label: 'Compliance',        icon: ShieldCheck,     permission: 'settings:read' },
       { href: '/triggers',  label: 'Event Triggers',  icon: Zap,            permission: 'triggers:read' },
       { href: '/apiref',    label: 'API Reference',   icon: Key,            permission: null },
       { href: '/apikeys',   label: 'API Keys',        icon: Key,            permission: 'settings:read' },
