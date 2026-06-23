@@ -14,7 +14,7 @@ import {
   ChevronRight, UserCheck, Zap, Sparkles,
   UserSearch, FlaskConical, BarChart3, Key, ScrollText, Wand2,
   Share2, Workflow, Package, Route, Gem, LineChart, ShieldCheck,
-  Boxes, GitPullRequest, TrendingUp, Megaphone, Send, Gauge, ListChecks,
+  Boxes, GitPullRequest, TrendingUp, Megaphone, Send, Gauge, ListChecks, SlidersHorizontal,
 } from 'lucide-react';
 
 const NAV_SECTIONS = [
@@ -61,6 +61,7 @@ const NAV_SECTIONS = [
       { href: '/operations', label: 'Batch Operations',  icon: Activity,        permission: 'operations:read' },
       { href: '/observability', label: 'Observability',   icon: Gauge,           permission: 'operations:read' },
       { href: '/jobs',       label: 'Decision Jobs',     icon: ListChecks,      permission: 'operations:read' },
+      { href: '/platform',   label: 'Platform',          icon: SlidersHorizontal, permission: 'settings:read' },
       { href: '/triggers',  label: 'Event Triggers',  icon: Zap,            permission: 'triggers:read' },
       { href: '/apiref',    label: 'API Reference',   icon: Key,            permission: null },
       { href: '/apikeys',   label: 'API Keys',        icon: Key,            permission: 'settings:read' },
