@@ -1,12 +1,18 @@
 /**
  * OAuth callback — exchanges the provider code for a Supabase session, ensures
  * the user has a role row (default read_only), then redirects into the app.
+ *
+ * Cookies are bound to the REDIRECT response (not next/headers) so the session
+ * actually persists across the redirect — otherwise /api/me sees no session and
+ * the app bounces back to /login.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase-server';
+import { createServerClient } from '@supabase/ssr';
 import { serviceSupabase } from '@/lib/supabase';
 
 const TENANT = 'f0000000-0000-4000-a000-000000000001';
+const URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get('code');
@@ -15,7 +21,15 @@ export async function GET(req: NextRequest) {
 
   if (!code) return NextResponse.redirect(`${origin}/login?error=missing_code`);
 
-  const supabase = createServerSupabase();
+  // Write auth cookies onto THIS response so they survive the redirect.
+  const response = NextResponse.redirect(`${origin}${next}`);
+  const supabase = createServerClient(URL, KEY, {
+    cookies: {
+      getAll: () => req.cookies.getAll(),
+      setAll: (toSet) => toSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options)),
+    },
+  });
+
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error.message)}`);
 
@@ -33,5 +47,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(`${origin}${next}`);
+  return response;
 }
