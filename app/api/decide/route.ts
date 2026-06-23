@@ -19,6 +19,7 @@ import {
   DBStrategy, DBAction, DBContactPolicy,
 } from '@/lib/supabase';
 import type { PriorityBreakdown } from '@/lib/arbitration';
+import { rateLimit, rateLimitHeaders, rateKey } from '@/lib/rate-limit';
 import {
   evaluateStrategy, arbitrate, translateSuppression, carFromAttributes, isInControlGroup,
   type CAR,
@@ -47,6 +48,9 @@ async function checkAuth(req: NextRequest, tenantId: string): Promise<boolean> {
 
 export async function POST(req: NextRequest) {
   const start = Date.now();
+
+  const rl = rateLimit(rateKey(req));
+  if (!rl.allowed) return NextResponse.json({ error: 'Rate limit exceeded', limit: rl.limit }, { status: 429, headers: rateLimitHeaders(rl) });
 
   let body: {
     customerId: string;
@@ -207,13 +211,17 @@ export async function POST(req: NextRequest) {
     trace,
     latencyMs,
     persistedToDatabase: true,
-  });
+  }, { headers: rateLimitHeaders(rl) });
 }
 
 // ── GET: Global NBA — evaluate ALL active strategies ─────────────────────────
 
 export async function GET(req: NextRequest) {
   const start      = Date.now();
+
+  const rl = rateLimit(rateKey(req));
+  if (!rl.allowed) return NextResponse.json({ error: 'Rate limit exceeded', limit: rl.limit }, { status: 429, headers: rateLimitHeaders(rl) });
+
   const customerId = req.nextUrl.searchParams.get('customerId') ?? '';
   const tenantId   = req.nextUrl.searchParams.get('tenantId')   ?? 'f0000000-0000-4000-a000-000000000001';
   const attrsParam = req.nextUrl.searchParams.get('attributes') ?? '{}';
@@ -349,5 +357,5 @@ export async function GET(req: NextRequest) {
     profileLoaded:        Object.keys(profileAttrs).length > 0,
     persistedToDatabase:  decisionId !== null,
     latencyMs:            Date.now() - start,
-  });
+  }, { headers: rateLimitHeaders(rl) });
 }
