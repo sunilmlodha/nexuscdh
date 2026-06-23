@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Copy, CheckCircle, ChevronDown, ChevronRight, Zap, Send } from 'lucide-react';
+import { Copy, CheckCircle, ChevronDown, ChevronRight, Zap, Send, FileJson } from 'lucide-react';
 
 const TENANT = 'f0000000-0000-4000-a000-000000000001';
 const BASE    = typeof window !== 'undefined' ? window.location.origin : 'https://nexuscdh.vercel.app';
@@ -340,6 +340,17 @@ export default function ApiRefPage() {
         <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 8, fontSize: 12 }}>
           <strong>Base URL:</strong> <code>{BASE}</code> &nbsp;·&nbsp;
           <strong>Demo Tenant:</strong> <code>{TENANT}</code>
+        </div>
+        <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+          <a href="/api/openapi" target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', borderRadius: 8, background: 'var(--brand-accent)', color: '#fff', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+            <FileJson size={13} /> OpenAPI 3.1 spec
+          </a>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            Import into Postman/Insomnia or generate an SDK. Auth: <code style={{ background: 'var(--bg-secondary)', padding: '1px 5px', borderRadius: 4 }}>X-API-Key</code> header.
+          </span>
+          <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 20, background: '#eef2ff', color: '#4338ca', fontWeight: 600 }}>
+            Rate limit: 120 req/min · X-RateLimit-* headers
+          </span>
         </div>
       </div>
 
