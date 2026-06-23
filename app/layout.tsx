@@ -15,6 +15,7 @@ import {
   UserSearch, FlaskConical, BarChart3, Key, ScrollText, Wand2,
   Share2, Workflow, Package, Route, Gem, LineChart, ShieldCheck,
   Boxes, GitPullRequest, TrendingUp, Megaphone, Send, Gauge, ListChecks, SlidersHorizontal,
+  Fingerprint,
 } from 'lucide-react';
 
 const NAV_SECTIONS = [
@@ -46,6 +47,7 @@ const NAV_SECTIONS = [
       { href: '/lift',      label: 'Lift Analytics',    icon: TrendingUp,   permission: 'analytics:read' },
       { href: '/simulator', label: 'Decision Simulator',icon: Cpu,          permission: 'simulator:read' },
       { href: '/profiles',  label: 'Customer Profiles', icon: UserSearch,   permission: 'profiles:read' },
+      { href: '/identity',  label: 'Identity Resolution',icon: Fingerprint, permission: 'profiles:read' },
       { href: '/experiments',label: 'Experiments',      icon: FlaskConical, permission: 'experiments:read' },
       { href: '/simulate',  label: 'Simulation',        icon: Cpu,          permission: 'simulate:read' },
       { href: '/analytics', label: 'Analytics',         icon: BarChart3,    permission: 'analytics:read' },
