@@ -15,7 +15,7 @@ import {
   UserSearch, FlaskConical, BarChart3, Key, ScrollText, Wand2,
   Share2, Workflow, Package, Route, Gem, LineChart, ShieldCheck,
   Boxes, GitPullRequest, TrendingUp, Megaphone, Send, Gauge, ListChecks, SlidersHorizontal,
-  Fingerprint,
+  Fingerprint, Palette,
 } from 'lucide-react';
 
 const NAV_SECTIONS = [
@@ -71,6 +71,7 @@ const NAV_SECTIONS = [
       { href: '/apikeys',   label: 'API Keys',        icon: Key,            permission: 'settings:read' },
       { href: '/audit',     label: 'Audit Log',       icon: ScrollText,     permission: 'settings:read' },
       { href: '/configuration', label: 'Industry Templates', icon: Sparkles,   permission: 'settings:read' },
+      { href: '/design-system', label: 'Design System',    icon: Palette,      permission: null },
       { href: '/users',     label: 'Users & Roles',  icon: UserCheck,       permission: 'users:read' },
       { href: '/settings',  label: 'Settings',       icon: Settings,        permission: 'settings:read' },
     ],

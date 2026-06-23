@@ -2,13 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Fingerprint, Search, Link2, GitMerge, Mail, Phone, Smartphone, Globe, Cookie } from 'lucide-react';
+import { Button, Card, Field, Input, Select, PageHeader, Notice } from '@/components/ui';
 
 const TENANT_ID = 'f0000000-0000-4000-a000-000000000001';
 const TYPES = ['email', 'phone', 'device', 'external', 'cookie'];
-const panel: React.CSSProperties = { background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12 };
 const input: React.CSSProperties = { width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: 13, boxSizing: 'border-box' };
-const lbl: React.CSSProperties = { display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 5 };
-const btn: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, background: 'var(--brand-accent)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 };
 
 const TYPE_ICON: Record<string, React.ReactNode> = {
   email: <Mail size={13} />, phone: <Phone size={13} />, device: <Smartphone size={13} />, external: <Globe size={13} />, cookie: <Cookie size={13} />,
@@ -56,43 +54,34 @@ export default function IdentityPage() {
 
   return (
     <div style={{ padding: '32px 36px', maxWidth: 1100, margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-        <Fingerprint size={24} color="var(--brand-accent)" />
-        <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>Identity Resolution</h1>
-          <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>Stitch emails, devices, phones, and external keys into one canonical customer (CDP).</p>
-        </div>
-      </div>
+      <PageHeader icon={Fingerprint} title="Identity Resolution" subtitle="Stitch emails, devices, phones, and external keys into one canonical customer (CDP)." />
 
-      {msg && <div style={{ ...panel, padding: 12, marginTop: 14, borderLeft: '3px solid var(--brand-accent)', fontSize: 13, color: 'var(--text-secondary)' }}>{msg}</div>}
-      {err && <div style={{ ...panel, padding: 16, marginTop: 14, borderLeft: '3px solid #ef4444', fontSize: 13, color: 'var(--text-secondary)' }}>{err}</div>}
+      {msg && <div style={{ marginBottom: 14 }}><Notice tone="success">{msg}</Notice></div>}
+      {err && <div style={{ marginBottom: 14 }}><Notice tone="danger">{err}</Notice></div>}
 
       {/* actions */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 16 }}>
-        <div style={{ ...panel, padding: 18 }}>
+        <Card>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}><Link2 size={15} /> Link identifier</div>
-          <label style={lbl}>Canonical customer ID</label>
-          <input value={link.customerId} onChange={e => setLink(l => ({ ...l, customerId: e.target.value }))} placeholder="cust_123" style={input} />
+          <Field label="Canonical customer ID"><Input value={link.customerId} onChange={e => setLink(l => ({ ...l, customerId: e.target.value }))} placeholder="cust_123" /></Field>
           <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 10, marginTop: 10 }}>
-            <div><label style={lbl}>Type</label><select value={link.aliasType} onChange={e => setLink(l => ({ ...l, aliasType: e.target.value }))} style={input}>{TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
-            <div><label style={lbl}>Value</label><input value={link.aliasValue} onChange={e => setLink(l => ({ ...l, aliasValue: e.target.value }))} placeholder="user@example.com" style={input} /></div>
+            <Field label="Type"><Select value={link.aliasType} onChange={e => setLink(l => ({ ...l, aliasType: e.target.value }))}>{TYPES.map(t => <option key={t} value={t}>{t}</option>)}</Select></Field>
+            <Field label="Value"><Input value={link.aliasValue} onChange={e => setLink(l => ({ ...l, aliasValue: e.target.value }))} placeholder="user@example.com" /></Field>
           </div>
-          <button onClick={doLink} disabled={!link.customerId || !link.aliasValue} style={{ ...btn, marginTop: 14, opacity: link.customerId && link.aliasValue ? 1 : 0.6 }}><Link2 size={14} /> Link</button>
-        </div>
+          <Button onClick={doLink} disabled={!link.customerId || !link.aliasValue} icon={Link2} style={{ marginTop: 14 }}>Link</Button>
+        </Card>
 
-        <div style={{ ...panel, padding: 18 }}>
+        <Card>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}><GitMerge size={15} /> Merge profiles</div>
-          <label style={lbl}>From (absorbed)</label>
-          <input value={merge.from} onChange={e => setMerge(m => ({ ...m, from: e.target.value }))} placeholder="duplicate cust_456" style={input} />
-          <label style={{ ...lbl, marginTop: 10 }}>Into (survivor)</label>
-          <input value={merge.to} onChange={e => setMerge(m => ({ ...m, to: e.target.value }))} placeholder="canonical cust_123" style={input} />
-          <button onClick={doMerge} disabled={!merge.from || !merge.to} style={{ ...btn, marginTop: 14, background: '#f59e0b', opacity: merge.from && merge.to ? 1 : 0.6 }}><GitMerge size={14} /> Merge</button>
+          <Field label="From (absorbed)"><Input value={merge.from} onChange={e => setMerge(m => ({ ...m, from: e.target.value }))} placeholder="duplicate cust_456" /></Field>
+          <Field label="Into (survivor)" style={{ marginTop: 10 }}><Input value={merge.to} onChange={e => setMerge(m => ({ ...m, to: e.target.value }))} placeholder="canonical cust_123" /></Field>
+          <Button onClick={doMerge} disabled={!merge.from || !merge.to} icon={GitMerge} style={{ marginTop: 14, background: 'var(--warning)' }}>Merge</Button>
           <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>Repoints aliases + decisions, then drops the absorbed profile.</p>
-        </div>
+        </Card>
       </div>
 
       {/* identity graph */}
-      <div style={{ ...panel, padding: 18, marginTop: 14 }}>
+      <Card style={{ marginTop: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Identity graph <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: 12 }}>· {Object.keys(byCustomer).length} customers · {aliases.length} aliases</span></div>
           <div style={{ position: 'relative' }}>
@@ -118,7 +107,7 @@ export default function IdentityPage() {
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
