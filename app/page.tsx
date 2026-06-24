@@ -18,10 +18,10 @@ export default function DashboardPage() {
   const today    = decisions.filter(d => (d.timestamp ?? '').slice(0, 10) === todayStr).length;
 
   const KPIs = [
-    { label:'Active Strategies',   value: active,              total: strategies.length,  href:'/strategies', icon: GitBranch, color:'#1D4ED8' },
-    { label:'Actions Configured',  value: actions.length,      total: null,               href:'/taxonomy',   icon: Layers,    color:'#7C3AED' },
-    { label:'Decisions Today',     value: today,               total: decisions.length,   href:'/simulator',  icon: Zap,       color:'#059669' },
-    { label:'Active Channels',     value: channels.filter(c=>c.enabled).length, total: channels.length, href:'/channels', icon: Radio, color:'#D97706' },
+    { label:'Active Strategies',   value: active,              sub: `${strategies.length} total configured`,  href:'/strategies', icon: GitBranch, color:'#1D4ED8' },
+    { label:'Actions Configured',  value: actions.length,      sub: `${categories.length} categories · ${topics.length} topics`, href:'/taxonomy', icon: Layers, color:'#7C3AED' },
+    { label:'Decisions Today',     value: today,               sub: `${decisions.length} total configured`,   href:'/simulator',  icon: Zap,       color:'#059669' },
+    { label:'Active Channels',     value: channels.filter(c=>c.enabled).length, sub: `${channels.length} total configured`, href:'/channels', icon: Radio, color:'#D97706' },
   ];
 
   const isFirstRun = strategies.length === 0 && categories.length === 0;
@@ -84,8 +84,8 @@ export default function DashboardPage() {
         {/* KPIs */}
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16 }}>
           {KPIs.map(k => (
-            <Link key={k.label} href={k.href} style={{ textDecoration:'none' }}>
-              <div className="kpi-card" style={{ transition:'box-shadow 0.15s, transform 0.15s', cursor:'pointer' }}
+            <Link key={k.label} href={k.href} style={{ textDecoration:'none', display:'block', height:'100%' }}>
+              <div className="kpi-card" style={{ transition:'box-shadow 0.15s, transform 0.15s', cursor:'pointer', height:'100%', boxSizing:'border-box' }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow='var(--shadow)'; (e.currentTarget as HTMLElement).style.transform='translateY(-1px)'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow=''; (e.currentTarget as HTMLElement).style.transform=''; }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
@@ -95,7 +95,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div className="kpi-value">{k.value}</div>
-                {k.total !== null && <div className="kpi-delta neutral">{k.total} total configured</div>}
+                <div className="kpi-delta neutral">{k.sub}</div>
               </div>
             </Link>
           ))}
