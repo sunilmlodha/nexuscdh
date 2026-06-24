@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth, ROLE_LABELS } from '@/lib/auth';
 import { useStore, INDUSTRY_TEMPLATES } from '@/lib/store';
-import { Save, CheckCircle2, Sun, Moon, Shield, Building2, Palette, Database, Key } from 'lucide-react';
+import { Save, CheckCircle2, Sun, Moon, Sparkles, Shield, Building2, Palette, Database, Key } from 'lucide-react';
 
 interface ApiKey {
   id: string;
@@ -144,20 +144,26 @@ export default function SettingsPage() {
               <Palette size={18} color="var(--brand-accent)" />
               <div style={{ fontSize:15, fontWeight:700 }}>Theme</div>
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-              {(['default','editorial'] as const).map(t => (
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:12 }}>
+              {(['default','editorial','vault'] as const).map(t => {
+                const Icon = t==='default' ? Sun : t==='editorial' ? Moon : Sparkles;
+                const desc = t==='default'
+                  ? 'Clean, neutral. Standard enterprise interface.'
+                  : t==='editorial'
+                  ? 'Editorial typographic style. Warm tones, high contrast.'
+                  : 'Soft consumer-fintech. Light sidebar, serif headings, periwinkle accent.';
+                return (
                 <button key={t} onClick={() => updateAuthSettings({ theme: t })}
-                  style={{ padding:'16px', border:`2px solid ${authSettings.theme===t?'var(--brand-accent)':'var(--border)'}`, borderRadius:10, cursor:'pointer', background:'white', textAlign:'left', transition:'border-color 0.15s' }}>
+                  style={{ padding:'16px', border:`2px solid ${authSettings.theme===t?'var(--brand-accent)':'var(--border)'}`, borderRadius:10, cursor:'pointer', background:'var(--bg-panel)', textAlign:'left', transition:'border-color 0.15s' }}>
                   <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
-                    {t==='default' ? <Sun size={16} color={authSettings.theme===t?'var(--brand-accent)':'var(--text-muted)'}/> : <Moon size={16} color={authSettings.theme===t?'var(--brand-accent)':'var(--text-muted)'}/>}
+                    <Icon size={16} color={authSettings.theme===t?'var(--brand-accent)':'var(--text-muted)'}/>
                     <span style={{ fontWeight:700, fontSize:13, color: authSettings.theme===t?'var(--brand-accent)':'var(--text-primary)', textTransform:'capitalize' }}>{t}</span>
                     {authSettings.theme===t && <span className="badge badge-blue" style={{ marginLeft:'auto', fontSize:10 }}>Active</span>}
                   </div>
-                  <div style={{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.4 }}>
-                    {t==='default' ? 'Clean, neutral. Standard enterprise interface.' : 'Editorial typographic style. Warm tones, high contrast. Premium feel.'}
-                  </div>
+                  <div style={{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.4 }}>{desc}</div>
                 </button>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
