@@ -101,7 +101,7 @@ export default function PoliciesPage() {
   return (
     <div className="animate-in">
       <div className="page-header" style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
-        <div><h1 className="page-title">Engagement Policies</h1>
+        <div><h1 className="page-title">Decision Guardrails</h1>
           <p className="page-subtitle">Contact frequency limits, consent gates, fairness controls, suppression rules</p></div>
         {canWrite && <div style={{ paddingTop:24 }}><button onClick={()=>setModal({})} className="btn btn-primary btn-sm"><Plus size={13}/>New Policy</button></div>}
       </div>

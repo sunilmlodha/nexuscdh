@@ -51,7 +51,7 @@ export default function LoginPage() {
             <Zap size={24} color="white" />
           </div>
           <div style={{ fontSize:22, fontWeight:800, letterSpacing:'-0.5px', color:'var(--text-primary)' }}>Stratcheck</div>
-          <div style={{ fontSize:13, color:'var(--text-secondary)', marginTop:4 }}>Enterprise Customer Decision Hub</div>
+          <div style={{ fontSize:13, color:'var(--text-secondary)', marginTop:4 }}>Enterprise AI Decisioning Platform</div>
         </div>
 
         {/* SSO */}

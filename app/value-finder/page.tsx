@@ -47,7 +47,7 @@ export default function ValueFinderPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Gem size={24} color="var(--brand-accent)" />
           <div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>Value Finder</h1>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>Opportunity Finder</h1>
             <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>Find under-served customers and unrealised action value across your base.</p>
           </div>
         </div>
