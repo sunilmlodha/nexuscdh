@@ -1,5 +1,5 @@
 /**
- * /api/openapi — machine-readable OpenAPI 3.1 spec for the public NexusCDH API.
+ * /api/openapi — machine-readable OpenAPI 3.1 spec for the public Stratcheck API.
  * Powers SDK generation, Postman import, and the API Reference page.
  */
 import { NextRequest, NextResponse } from 'next/server';
@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const spec = {
     openapi: '3.1.0',
     info: {
-      title: 'NexusCDH Decision API',
+      title: 'Stratcheck Decision API',
       version: '1.0.0',
       description: 'Real-time next-best-action decisioning, Pega CDH-compatible. Authenticate external calls with the `X-API-Key` header (create keys in Settings → API Keys). Rate limited to 120 req/min per key; responses carry `X-RateLimit-*` headers and 429s include `Retry-After`.',
     },

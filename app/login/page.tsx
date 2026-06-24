@@ -50,7 +50,7 @@ export default function LoginPage() {
           <div style={{ width:48, height:48, borderRadius:12, background:'var(--brand-accent)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px' }}>
             <Zap size={24} color="white" />
           </div>
-          <div style={{ fontSize:22, fontWeight:800, letterSpacing:'-0.5px', color:'var(--text-primary)' }}>NexusCDH</div>
+          <div style={{ fontSize:22, fontWeight:800, letterSpacing:'-0.5px', color:'var(--text-primary)' }}>Stratcheck</div>
           <div style={{ fontSize:13, color:'var(--text-secondary)', marginTop:4 }}>Enterprise Customer Decision Hub</div>
         </div>
 

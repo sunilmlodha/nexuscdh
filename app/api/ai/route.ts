@@ -19,8 +19,8 @@ const MODEL = 'claude-sonnet-4-6';
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 function systemPrompt(persona: string) {
-  return `You are an expert ${persona} inside NexusCDH, an enterprise Customer Decision Hub modelled on Pega CDH / Customer Engagement Studio.
-NexusCDH has: Strategies, Engagement Policies (eligibility rules + suppression rules + contact limits), Actions (with propensity scores), Audiences (segment rules), Channels, Adaptive Models, and Event Triggers.
+  return `You are an expert ${persona} inside Stratcheck, an enterprise Customer Decision Hub modelled on Pega CDH / Customer Engagement Studio.
+Stratcheck has: Strategies, Engagement Policies (eligibility rules + suppression rules + contact limits), Actions (with propensity scores), Audiences (segment rules), Channels, Adaptive Models, and Event Triggers.
 Respond ONLY with valid JSON that matches the schema described in the user message. No markdown, no explanation.`;
 }
 
@@ -76,7 +76,7 @@ Return JSON: { "headline": string (max 12 words), "explanation": string, "keyFac
 async function campaignToStrategy(brief: string, availableCategories: string[], availableChannels: string[]) {
   const raw = await callClaude(
     systemPrompt('marketing strategy architect'),
-    `Convert this campaign brief into a NexusCDH strategy scaffold.
+    `Convert this campaign brief into a Stratcheck strategy scaffold.
 Brief: "${brief}"
 Available categories: ${JSON.stringify(availableCategories)}
 Available channels: ${JSON.stringify(availableChannels)}
@@ -100,7 +100,7 @@ Return JSON matching this schema:
 async function suggestSuppression(text: string) {
   const raw = await callClaude(
     systemPrompt('engagement policy specialist'),
-    `Convert this plain-English suppression requirement into structured suppression conditions for NexusCDH.
+    `Convert this plain-English suppression requirement into structured suppression conditions for Stratcheck.
 Requirement: "${text}"
 Return JSON:
 {
@@ -115,7 +115,7 @@ Return JSON:
 async function strategyCritique(strategy: unknown) {
   const raw = await callClaude(
     systemPrompt('CDH strategy reviewer'),
-    `Review this NexusCDH strategy configuration and return improvement suggestions.
+    `Review this Stratcheck strategy configuration and return improvement suggestions.
 Strategy: ${JSON.stringify(strategy, null, 2)}
 Return JSON:
 {

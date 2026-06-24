@@ -3,7 +3,7 @@
  * PUT  /api/v1/customers/{customerId}         — Update customer attributes
  * POST /api/v1/customers/{customerId}/actions — Get NBA for customer (alias)
  *
- * Pega CDH Customer Profile API — NexusCDH compatible.
+ * Pega CDH Customer Profile API — Stratcheck compatible.
  */
 
 import { NextRequest, NextResponse } from 'next/server';

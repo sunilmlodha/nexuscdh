@@ -1326,7 +1326,7 @@ export default function ModelsPage() {
       {/* How learning works — always visible banner */}
       <div style={{ background: '#F0F0FF', border: '1px solid #C7D2FE', borderRadius: 10, padding: '14px 20px', marginBottom: 28 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#4338CA', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 7 }}>
-          <Zap size={14} /> How adaptive learning works in NexusCDH
+          <Zap size={14} /> How adaptive learning works in Stratcheck
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
           {[

@@ -153,7 +153,7 @@ export default function DataflowPage() {
           <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>Decision Dataflow</h1>
         </div>
         <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
-          End-to-end visualisation of how a customer event flows through NexusCDH — from inbound signal to Next-Best-Action delivery and outcome learning.
+          End-to-end visualisation of how a customer event flows through Stratcheck — from inbound signal to Next-Best-Action delivery and outcome learning.
           Click any step to explore its inputs, outputs, and configuration.
         </p>
       </div>

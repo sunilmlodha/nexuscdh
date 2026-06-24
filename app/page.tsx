@@ -37,7 +37,7 @@ export default function DashboardPage() {
           <h1 className="page-title">Good day{name ? `, ${name}` : ''}.</h1>
           <p className="page-subtitle">
             {isFirstRun
-              ? 'Welcome to NexusCDH. Start by configuring your taxonomy, then create strategies.'
+              ? 'Welcome to Stratcheck. Start by configuring your taxonomy, then create strategies.'
               : `${active} active ${active===1?'strategy':'strategies'} · ${decisions.length} decisions recorded`}
           </p>
         </div>
@@ -56,7 +56,7 @@ export default function DashboardPage() {
           <div className="card" style={{ padding:0, overflow:'hidden', border:'1.5px solid var(--border-mid)' }}>
             <div style={{ background:'linear-gradient(135deg, #1D4ED8, #7C3AED)', padding:'24px 28px', color:'white' }}>
               <div style={{ fontSize:18, fontWeight:800, letterSpacing:'-0.5px', marginBottom:6 }}>Build your first decision strategy</div>
-              <div style={{ fontSize:13, opacity:0.85 }}>NexusCDH is configured in layers. Follow these steps to go live.</div>
+              <div style={{ fontSize:13, opacity:0.85 }}>Stratcheck is configured in layers. Follow these steps to go live.</div>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', borderTop:'1px solid var(--border)' }}>
               {[

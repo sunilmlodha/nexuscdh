@@ -2,7 +2,7 @@
  * POST /api/webhooks/outcome — inbound outcome webhook.
  *
  * A channel/ESP/CDP calls this when something happens to a delivered message.
- * Maps the event → a NexusCDH outcome, records it on the originating decision
+ * Maps the event → a Stratcheck outcome, records it on the originating decision
  * (closing the adaptive-learning loop), and updates the delivery status.
  *
  * Body (flexible): {

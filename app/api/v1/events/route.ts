@@ -1,10 +1,10 @@
 /**
  * POST /api/v1/events
  *
- * Pega CDH Event API — NexusCDH compatible.
+ * Pega CDH Event API — Stratcheck compatible.
  *
  * Inbound event endpoint. External systems (CDP, CRM, mobile app) fire events
- * here; NexusCDH matches them against event_triggers, runs the linked strategies,
+ * here; Stratcheck matches them against event_triggers, runs the linked strategies,
  * and returns the winning action.
  *
  * Body:

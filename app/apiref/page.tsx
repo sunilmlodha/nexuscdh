@@ -70,7 +70,7 @@ const ENDPOINTS: Endpoint[] = [
     path: '/api/v1/interactions/INT-A1B2C3D4/responses',
     title: 'Capture Response API',
     pegaEquivalent: 'POST /prweb/api/v1/interactions/{id}/responses',
-    description: 'Record customer responses (Clicked, Accepted, Dismissed, etc.) back to NexusCDH. Triggers adaptive propensity update. Accepted → +0.02 propensity nudge, Rejected → −0.01.',
+    description: 'Record customer responses (Clicked, Accepted, Dismissed, etc.) back to Stratcheck. Triggers adaptive propensity update. Accepted → +0.02 propensity nudge, Rejected → −0.01.',
     body: JSON.stringify({
       responses: [{
         rank: 1,
@@ -121,7 +121,7 @@ const ENDPOINTS: Endpoint[] = [
     path: '/api/v1/events',
     title: 'Event API',
     pegaEquivalent: 'POST /prweb/api/v1/events (Event Strategy)',
-    description: 'Fire a business event. NexusCDH matches it against event triggers, runs linked strategies, and returns the winning action in real time.',
+    description: 'Fire a business event. Stratcheck matches it against event triggers, runs linked strategies, and returns the winning action in real time.',
     body: JSON.stringify({
       eventType: 'mortgage.approved',
       CustomerID: 'cust-001',
@@ -142,9 +142,9 @@ const ENDPOINTS: Endpoint[] = [
       pxInteractionID: 'EVT-F4A2B1C3',
     }, null, 2),
   },
-  // ── NexusCDH native ──────────────────────────────────────────────────────────
+  // ── Stratcheck native ──────────────────────────────────────────────────────────
   {
-    category: 'NexusCDH Native',
+    category: 'Stratcheck Native',
     method: 'POST',
     path: '/api/decide',
     title: 'Single Strategy Decision',
@@ -157,28 +157,28 @@ const ENDPOINTS: Endpoint[] = [
     }, null, 2),
   },
   {
-    category: 'NexusCDH Native',
+    category: 'Stratcheck Native',
     method: 'GET',
     path: `/api/decide?customerId=cust-001&tenantId=${TENANT}`,
     title: 'Global NBA (Next Best Action)',
     description: 'Run all active strategies for a customer and return the single best action across all of them.',
   },
   {
-    category: 'NexusCDH Native',
+    category: 'Stratcheck Native',
     method: 'GET',
     path: `/api/strategies?tenantId=${TENANT}`,
     title: 'List Strategies',
     description: 'Returns all strategies for a tenant with full configuration.',
   },
   {
-    category: 'NexusCDH Native',
+    category: 'Stratcheck Native',
     method: 'GET',
     path: `/api/profile?customerId=cust-001&tenantId=${TENANT}`,
     title: 'Customer Profile + Decision History',
     description: 'Fetch a customer profile with their last 20 decisions.',
   },
   {
-    category: 'NexusCDH Native',
+    category: 'Stratcheck Native',
     method: 'POST',
     path: '/api/outcome',
     title: 'Record Outcome',
@@ -191,14 +191,14 @@ const ENDPOINTS: Endpoint[] = [
     }, null, 2),
   },
   {
-    category: 'NexusCDH Native',
+    category: 'Stratcheck Native',
     method: 'GET',
     path: `/api/seed`,
     title: 'Seed Data Counts',
     description: 'Returns current record counts for all seeded tables.',
   },
   {
-    category: 'NexusCDH Native',
+    category: 'Stratcheck Native',
     method: 'GET',
     path: `/api/v1/events?tenantId=${TENANT}`,
     title: 'List Event Triggers',
@@ -334,7 +334,7 @@ export default function ApiRefPage() {
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>API Reference</h1>
         <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
-          NexusCDH exposes a Pega CDH-compatible API surface. Existing Pega integrations work without client changes.
+          Stratcheck exposes a Pega CDH-compatible API surface. Existing Pega integrations work without client changes.
           All endpoints require <code style={{ background: 'var(--bg-secondary)', padding: '1px 5px', borderRadius: 4 }}>tenantId</code> for multi-tenant scoping.
         </p>
         <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 8, fontSize: 12 }}>
@@ -356,7 +356,7 @@ export default function ApiRefPage() {
 
       {/* Pega outcome map */}
       <div className="card" style={{ padding: 16, marginBottom: 24 }}>
-        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>Pega pyOutcome → NexusCDH outcome mapping</div>
+        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>Pega pyOutcome → Stratcheck outcome mapping</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {Object.entries(OUTCOME_MAP).map(([pega, nexus]) => (
             <div key={pega} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 20, background: nexus === 'accepted' ? '#dcfce7' : nexus === 'rejected' ? '#fee2e2' : '#f3f4f6', color: nexus === 'accepted' ? '#166534' : nexus === 'rejected' ? '#991b1b' : '#6b7280' }}>

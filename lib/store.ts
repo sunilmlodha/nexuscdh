@@ -1,5 +1,5 @@
 /**
- * NexusCDH Enterprise Store
+ * Stratcheck Enterprise Store
  *
  * Industry-agnostic Customer Decision Hub.
  * Configurable for: Retail Banking, Insurance, Telco, Retail, SME, Healthcare, etc.

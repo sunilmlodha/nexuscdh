@@ -1,5 +1,5 @@
 /**
- * /api/decide — NexusCDH Decision Engine
+ * /api/decide — Stratcheck Decision Engine
  *
  * POST  — Single-strategy decision (specify strategyId)
  * GET   — Global NBA: evaluate ALL active strategies, return best action
