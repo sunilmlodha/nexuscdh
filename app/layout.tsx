@@ -29,19 +29,19 @@ const NAV_SECTIONS = [
       { href: '/campaigns',  label: 'Campaigns',            icon: Megaphone,permission: 'strategies:read' },
       { href: '/strategies', label: 'Strategies',           icon: GitBranch,permission: 'strategies:read' },
       { href: '/nba-designer',label: 'NBA Designer',        icon: Route,    permission: 'strategies:read' },
-      { href: '/arbitration',label: 'Arbitration',          icon: Scale,    permission: 'strategies:read' },
+      { href: '/arbitration',label: 'Prioritization',       icon: Scale,    permission: 'strategies:read' },
       { href: '/channels',  label: 'Channels',       icon: Radio,           permission: 'channels:read' },
-      { href: '/containers',label: 'Real-Time Containers', icon: Boxes,    permission: 'channels:read' },
-      { href: '/policies',  label: 'Engagement Policies', icon: Shield,     permission: 'policies:read' },
+      { href: '/containers',label: 'Decision Endpoints',  icon: Boxes,    permission: 'channels:read' },
+      { href: '/policies',  label: 'Decision Guardrails', icon: Shield,     permission: 'policies:read' },
     ],
   },
   {
     label: 'Intelligence',
     items: [
       { href: '/audiences', label: 'Audiences',         icon: Users,        permission: 'audiences:read' },
-      { href: '/models',    label: 'Adaptive Models',   icon: Brain,        permission: 'models:read' },
+      { href: '/models',    label: 'Self-Learning Models', icon: Brain,     permission: 'models:read' },
       { href: '/model-ops', label: 'Model Ops',         icon: Boxes,        permission: 'models:read' },
-      { href: '/value-finder',label: 'Value Finder',    icon: Gem,          permission: 'analytics:read' },
+      { href: '/value-finder',label: 'Opportunity Finder', icon: Gem,       permission: 'analytics:read' },
       { href: '/scenario',  label: 'Scenario Planner',  icon: LineChart,    permission: 'simulator:read' },
       { href: '/bias',      label: 'Ethical Bias Check',icon: ShieldCheck,  permission: 'analytics:read' },
       { href: '/lift',      label: 'Lift Analytics',    icon: TrendingUp,   permission: 'analytics:read' },
@@ -117,7 +117,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <head>
         <title>Stratcheck</title>
-        <meta name="description" content="Stratcheck — Enterprise Customer Decision Hub" />
+        <meta name="description" content="Stratcheck — Enterprise AI Decisioning Platform" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet" />
@@ -134,7 +134,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </div>
               <div>
                 <div className="sidebar-logo-text">Stratcheck</div>
-                <div className="sidebar-logo-sub">Customer Decision Hub</div>
+                <div className="sidebar-logo-sub">AI Decisioning Platform</div>
               </div>
             </div>
           </div>

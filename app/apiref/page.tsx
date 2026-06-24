@@ -18,14 +18,14 @@ interface Endpoint {
 }
 
 const ENDPOINTS: Endpoint[] = [
-  // ── Pega-compatible ──────────────────────────────────────────────────────────
+  // ── Compatibility / migration API ──────────────────────────────────────────────────────────
   {
-    category: 'Pega CDH Compatible',
+    category: 'Compatibility API',
     method: 'POST',
     path: '/api/v4/containers/PrimaryContainer',
     title: 'V4 Real-Time Container API',
     pegaEquivalent: 'POST /prweb/api/v4/containers/{name}',
-    description: 'Get next best actions for a customer in a named container. Returns ranked actions in Pega CDH V4 format. Use PrimaryContainer, SalesContainer, RetentionContainer, or OnboardingContainer.',
+    description: 'Get next best actions for a customer in a named container. Returns ranked actions in V4 container format. Use PrimaryContainer, SalesContainer, RetentionContainer, or OnboardingContainer.',
     body: JSON.stringify({
       context: {
         customer: {
@@ -65,7 +65,7 @@ const ENDPOINTS: Endpoint[] = [
     }, null, 2),
   },
   {
-    category: 'Pega CDH Compatible',
+    category: 'Compatibility API',
     method: 'POST',
     path: '/api/v1/interactions/INT-A1B2C3D4/responses',
     title: 'Capture Response API',
@@ -89,12 +89,12 @@ const ENDPOINTS: Endpoint[] = [
     }, null, 2),
   },
   {
-    category: 'Pega CDH Compatible',
+    category: 'Compatibility API',
     method: 'GET',
     path: `/api/v1/customers/cust-001?tenantId=${TENANT}`,
     title: 'Customer Profile API',
     pegaEquivalent: 'GET /prweb/api/v1/customers/{id}',
-    description: 'Fetch a customer profile with all attributes, segments, and recent decision history in Pega-shaped format.',
+    description: 'Fetch a customer profile with all attributes, segments, and recent decision history in standard profile format.',
     response: JSON.stringify({
       CustomerID: 'cust-001',
       pyCustomer: { pyCustomerID: 'cust-001', pyInteractions: 3, pySegments: [] },
@@ -104,7 +104,7 @@ const ENDPOINTS: Endpoint[] = [
     }, null, 2),
   },
   {
-    category: 'Pega CDH Compatible',
+    category: 'Compatibility API',
     method: 'PUT',
     path: '/api/v1/customers/cust-001',
     title: 'Update Customer Profile',
@@ -116,7 +116,7 @@ const ENDPOINTS: Endpoint[] = [
     }, null, 2),
   },
   {
-    category: 'Pega CDH Compatible',
+    category: 'Compatibility API',
     method: 'POST',
     path: '/api/v1/events',
     title: 'Event API',
@@ -271,7 +271,7 @@ function EndpointCard({ ep }: { ep: Endpoint }) {
           {ep.pegaEquivalent && (
             <div style={{ fontSize: 11, background: 'var(--bg-secondary)', borderRadius: 6, padding: '6px 10px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
               <Zap size={10} style={{ color: '#7c3aed' }} />
-              <span style={{ color: 'var(--text-muted)' }}>Pega equivalent: </span>
+              <span style={{ color: 'var(--text-muted)' }}>Migrating from Pega: </span>
               <code style={{ color: '#7c3aed' }}>{ep.pegaEquivalent}</code>
             </div>
           )}
@@ -334,7 +334,7 @@ export default function ApiRefPage() {
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>API Reference</h1>
         <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
-          Stratcheck exposes a Pega CDH-compatible API surface. Existing Pega integrations work without client changes.
+          Stratcheck exposes a standards-based REST API. Migrating from Pega CDH? Your existing integrations work without client changes.
           All endpoints require <code style={{ background: 'var(--bg-secondary)', padding: '1px 5px', borderRadius: 4 }}>tenantId</code> for multi-tenant scoping.
         </p>
         <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 8, fontSize: 12 }}>
@@ -354,9 +354,9 @@ export default function ApiRefPage() {
         </div>
       </div>
 
-      {/* Pega outcome map */}
+      {/* Response → outcome mapping */}
       <div className="card" style={{ padding: 16, marginBottom: 24 }}>
-        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>Pega pyOutcome → Stratcheck outcome mapping</div>
+        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>Inbound response → Stratcheck outcome mapping</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {Object.entries(OUTCOME_MAP).map(([pega, nexus]) => (
             <div key={pega} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 20, background: nexus === 'accepted' ? '#dcfce7' : nexus === 'rejected' ? '#fee2e2' : '#f3f4f6', color: nexus === 'accepted' ? '#166534' : nexus === 'rejected' ? '#991b1b' : '#6b7280' }}>

@@ -120,7 +120,7 @@ export default function ArbitrationPage() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
         <Scale size={24} color="var(--brand-accent)" />
         <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>Arbitration &amp; Engagement Policies</h1>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>Prioritization &amp; Decision Guardrails</h1>
           <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>Configure the four engagement-policy layers and the <strong>Priority = P × C × V × L</strong> arbitration formula, then test why an action wins.</p>
         </div>
       </div>

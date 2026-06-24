@@ -88,8 +88,8 @@ export default function ContainersPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Boxes size={24} color="var(--brand-accent)" />
           <div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>Real-Time Containers</h1>
-            <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>Named inbound decision endpoints (Pega V4-compatible) for web, mobile, and contact-centre placements.</p>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>Decision Endpoints</h1>
+            <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>Named inbound decision endpoints (V4-compatible) for web, mobile, and contact-centre placements.</p>
           </div>
         </div>
         <button onClick={() => { setForm(empty()); setModal(true); }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, background: 'var(--brand-accent)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
