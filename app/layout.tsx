@@ -118,6 +118,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <title>NexusCDH</title>
         <meta name="description" content="NexusCDH — Enterprise Customer Decision Hub" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet" />
       </head>
       <body className="app-shell">
 
@@ -163,17 +166,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="sidebar-footer">
             {user && (
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <div style={{ width:28, height:28, borderRadius:'50%', background:'rgba(255,255,255,0.15)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'white', flexShrink:0 }}>
+                <div style={{ width:28, height:28, borderRadius:'50%', background:'var(--sidebar-chip-bg)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'var(--sidebar-fg-strong)', flexShrink:0 }}>
                   {(user as any).avatarInitials ?? user.name?.slice(0,2).toUpperCase()}
                 </div>
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:12, fontWeight:600, color:'rgba(255,255,255,0.85)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user.name}</div>
+                  <div style={{ fontSize:12, fontWeight:600, color:'var(--sidebar-fg-strong)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user.name}</div>
                   {(user as any).email
-                    ? <div style={{ fontSize:10, color:'rgba(255,255,255,0.45)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{(user as any).email}</div>
+                    ? <div style={{ fontSize:10, color:'var(--text-nav-muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{(user as any).email}</div>
                     : <div className="role-chip" style={{ marginTop:2 }}>{ROLE_LABELS[user.role]}</div>}
                 </div>
                 <button onClick={signOut}
-                  style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(255,255,255,0.5)', padding:4, display:'flex', alignItems:'center' }}
+                  style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-nav-muted)', padding:4, display:'flex', alignItems:'center' }}
                   title={authSettings.authEnabled ? 'Sign out' : 'Sign out (go to login)'}>
                   <LogOut size={14} />
                 </button>
@@ -181,7 +184,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             )}
             <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:10 }}>
               <span className="dot dot-green pulse" />
-              <span style={{ fontSize:10, color:'rgba(255,255,255,0.3)' }}>All systems operational</span>
+              <span style={{ fontSize:10, color:'var(--text-nav-muted)' }}>All systems operational</span>
             </div>
           </div>
         </aside>

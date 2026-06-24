@@ -39,7 +39,7 @@ export interface AppUser {
 
 export interface AuthSettings {
   authEnabled: boolean;   // when false: skip login, everyone is tenant_admin
-  theme: 'default' | 'editorial';
+  theme: 'default' | 'editorial' | 'vault';
 }
 
 interface AuthStore {
