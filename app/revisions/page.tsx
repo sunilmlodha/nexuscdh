@@ -133,7 +133,7 @@ export default function RevisionsPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <GitPullRequest size={24} color="var(--brand-accent)" />
           <div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>1:1 Operations — Change Management</h1>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>Real-Time Operations — Change Management</h1>
             <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>Propose field-level changes to live artefacts, review the diff, approve, and deploy — with audit and rollback.</p>
           </div>
         </div>

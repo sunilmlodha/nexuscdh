@@ -63,7 +63,7 @@ function CampaignOutput({ data }: { data: Record<string, unknown> }) {
         {[
           { label: 'Strategy Name', value: data.name as string },
           { label: 'Category', value: data.suggestedCategory as string },
-          { label: 'Arbitration', value: data.arbitration as string },
+          { label: 'Prioritization', value: data.arbitration as string },
           { label: 'Priority', value: data.priority as string },
         ].map(f => (
           <div key={f.label} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px' }}>

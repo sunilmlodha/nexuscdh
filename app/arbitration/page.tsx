@@ -121,7 +121,7 @@ export default function ArbitrationPage() {
         <Scale size={24} color="var(--brand-accent)" />
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>Prioritization &amp; Decision Guardrails</h1>
-          <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>Configure the four engagement-policy layers and the <strong>Priority = P × C × V × L</strong> arbitration formula, then test why an action wins.</p>
+          <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>Configure the four decision-guardrail layers and the <strong>Priority = P × C × V × L</strong> prioritization formula, then test why an action wins.</p>
         </div>
       </div>
 
@@ -166,9 +166,9 @@ export default function ArbitrationPage() {
       {!draft && (
         <div style={{ ...panel, padding: 48, textAlign: 'center' }}>
           <Scale size={32} color="var(--text-muted)" style={{ marginBottom: 12 }} />
-          <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>No strategies to arbitrate yet</div>
+          <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>No strategies to prioritize yet</div>
           <div style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 460, margin: '0 auto' }}>
-            Create a strategy first (Workspace → Strategies). Once you have one, select it here to configure its engagement-policy layers and P × C × V × L arbitration, then test why an action wins.
+            Create a strategy first (Workspace → Strategies). Once you have one, select it here to configure its decision-guardrail layers and P × C × V × L prioritization, then test why an action wins.
             {configured === true && strategies.length === 0 && ' (If you expected strategies here, the database may be unreachable — check your Supabase connection.)'}
           </div>
         </div>
@@ -182,9 +182,9 @@ export default function ArbitrationPage() {
             <div style={{ ...panel, padding: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <Shield size={16} color="var(--brand-accent)" />
-                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Engagement Policies</span>
+                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Decision Guardrails</span>
               </div>
-              <p style={{ margin: '0 0 14px', fontSize: 12, color: 'var(--text-muted)' }}>Four ordered gates. An action must clear all to enter arbitration.</p>
+              <p style={{ margin: '0 0 14px', fontSize: 12, color: 'var(--text-muted)' }}>Four ordered gates. An action must clear all to enter prioritization.</p>
 
               {/* Eligibility (read-only — managed on the strategy/taxonomy) */}
               <LayerEditor layer="eligibility" rules={draft.eligibility_rules ?? []} readOnly
@@ -196,7 +196,7 @@ export default function ArbitrationPage() {
 
               <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--bg)', borderRadius: 8, fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#3b82f6', display: 'inline-block' }} />
-                <strong style={{ color: 'var(--text-secondary)' }}>Contact Policy</strong> (frequency &amp; suppression) is enforced separately on the Engagement Policies page.
+                <strong style={{ color: 'var(--text-secondary)' }}>Contact Policy</strong> (frequency &amp; suppression) is enforced separately on the Decision Guardrails page.
               </div>
             </div>
 
@@ -333,7 +333,7 @@ function ResultPanel({ result }: { result: DecideResult }) {
       {/* Engagement policy layers */}
       {result.engagementPolicy && (
         <div style={{ marginBottom: 16 }}>
-          <div style={miniLabel}>Engagement Policy Gates</div>
+          <div style={miniLabel}>Decision Guardrail Gates</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {result.engagementPolicy.layers.map(l => (
               <div key={l.layer} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>

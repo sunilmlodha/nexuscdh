@@ -185,7 +185,7 @@ function ModelModal({
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Brain size={18} color="#6366F1" />
             <span style={{ fontWeight: 600, fontSize: 16 }}>
-              {model ? 'Edit Model' : 'New Adaptive Model'}
+              {model ? 'Edit Model' : 'New Self-Learning Model'}
             </span>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}>
@@ -343,7 +343,7 @@ function ModelModal({
               <li>Every decision recorded via <code>/api/decide</code> logs propensity + outcome to the decision log</li>
               <li>When an outcome is submitted (accepted / rejected / ignored), the action&apos;s propensity nudges ±5%</li>
               <li><strong>Shadow</strong> mode: model observes and logs but does not affect live decisions</li>
-              <li><strong>Live</strong> mode: propensity scores influence arbitration in real-time</li>
+              <li><strong>Live</strong> mode: propensity scores influence prioritization in real-time</li>
               <li>Promote to Live once AUC stabilises above 0.6 and lift exceeds 1.5×</li>
             </ul>
           </div>

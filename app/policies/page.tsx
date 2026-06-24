@@ -33,7 +33,7 @@ function PolicyModal({ policy, onClose }: { policy?: ContactPolicy; onClose: ()=
   return (
     <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="modal" style={{ maxWidth:640 }}>
-        <div className="modal-header"><span className="modal-title">{policy?'Edit Policy':'New Engagement Policy'}</span>
+        <div className="modal-header"><span className="modal-title">{policy?'Edit Policy':'New Decision Guardrail'}</span>
           <button onClick={onClose} style={{ background:'none',border:'none',cursor:'pointer',color:'var(--text-muted)' }}><X size={16}/></button></div>
         <div className="modal-body" style={{ display:'flex', flexDirection:'column', gap:14 }}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
