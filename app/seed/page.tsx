@@ -80,7 +80,7 @@ export default function SeedPage() {
           <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>Demo Data Seeder</h1>
         </div>
         <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
-          Populate NexusCDH with realistic demo data — taxonomy, strategies, actions, audiences, customer profiles,
+          Populate Stratcheck with realistic demo data — taxonomy, strategies, actions, audiences, customer profiles,
           event triggers, experiments and decision logs — so every Intelligence feature shows live data.
         </p>
       </div>

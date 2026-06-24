@@ -1,5 +1,5 @@
 /**
- * Shared NexusCDH decision engine.
+ * Shared Stratcheck decision engine.
  *
  * Extracted from /api/decide so it can be reused in-process by Value Finder,
  * Scenario Planner, and the Ethical Bias check — all of which run NBA across

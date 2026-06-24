@@ -17,7 +17,7 @@ const TOOLS: { id: Tool; label: string; icon: ReactNode; placeholder: string; de
     label: 'Campaign → Strategy',
     icon: <GitBranch size={15} />,
     placeholder: 'e.g. "Launch a home insurance upsell campaign targeting existing car insurance customers aged 35-55 in Q3, using email and mobile push"',
-    description: 'Convert a campaign brief into a full NexusCDH strategy scaffold with actions, audiences, and eligibility rules.',
+    description: 'Convert a campaign brief into a full Stratcheck strategy scaffold with actions, audiences, and eligibility rules.',
   },
   {
     id: 'rules',

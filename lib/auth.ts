@@ -1,5 +1,5 @@
 /**
- * NexusCDH Auth & RBAC
+ * Stratcheck Auth & RBAC
  *
  * Authentication: optional (toggle in Settings → Auth)
  *   - When disabled: single shared workspace, no login required

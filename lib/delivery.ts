@@ -102,7 +102,7 @@ function mock(label: string): DeliveryResult {
   return { status: 'sent', providerMessageId: `mock-${randomUUID().slice(0, 12)}`, error: null, provider: label };
 }
 
-/** Map an external channel event to a NexusCDH outcome. */
+/** Map an external channel event to a Stratcheck outcome. */
 export function mapEventToOutcome(event: string): 'accepted' | 'rejected' | 'ignored' | null {
   const e = event.toLowerCase();
   if (['clicked', 'converted', 'accepted', 'opened', 'replied', 'purchased'].includes(e)) return 'accepted';

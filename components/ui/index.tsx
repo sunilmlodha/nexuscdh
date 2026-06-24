@@ -1,5 +1,5 @@
 /**
- * NexusCDH design-system primitives.
+ * Stratcheck design-system primitives.
  *
  * One typed component layer over the CSS custom properties in globals.css, so
  * pages stop hand-rolling inline styles and stay consistent in both themes.

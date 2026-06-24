@@ -102,7 +102,7 @@ export default function SettingsPage() {
     <div className="animate-in">
       <div className="page-header">
         <h1 className="page-title">Settings</h1>
-        <p className="page-subtitle">Configure your NexusCDH workspace, appearance, and access controls</p>
+        <p className="page-subtitle">Configure your Stratcheck workspace, appearance, and access controls</p>
       </div>
       <div className="tabs">{tabs.map(t => <div key={t} className="tab" data-active={tab===t||undefined} onClick={()=>setTab(t)}>{t}</div>)}</div>
 

@@ -1,10 +1,10 @@
 /**
  * POST /api/v4/containers/{containerName}
  *
- * Pega CDH V4 Real-Time Container API — NexusCDH compatible implementation.
+ * Pega CDH V4 Real-Time Container API — Stratcheck compatible implementation.
  *
  * Mirrors the Pega Customer Decision Hub V4 Container API contract so existing
- * Pega CDH integrations (web, mobile, CRM) can point at NexusCDH with zero
+ * Pega CDH integrations (web, mobile, CRM) can point at Stratcheck with zero
  * client-side changes.
  *
  * Pega docs reference:
@@ -21,7 +21,7 @@
  *       }
  *     },
  *     "channel": "web",           // optional, used to filter actions
- *     "tenantId": "...",          // optional, NexusCDH extension
+ *     "tenantId": "...",          // optional, Stratcheck extension
  *     "maxActions": 3             // optional, limit returned actions (default 3)
  *   }
  *
@@ -40,7 +40,7 @@ import { randomUUID } from 'crypto';
 
 const TENANT = process.env.NEXUS_TENANT_ID ?? 'f0000000-0000-4000-a000-000000000001';
 
-// Map Pega pyOutcome values → NexusCDH outcomes (used in capture response)
+// Map Pega pyOutcome values → Stratcheck outcomes (used in capture response)
 const PEGA_OUTCOME_MAP: Record<string, string> = {
   Clicked:    'accepted',
   Accepted:   'accepted',
@@ -262,7 +262,7 @@ export async function GET(
 ) {
   return NextResponse.json({
     container:   params.containerName,
-    description: 'NexusCDH V4 Container API — Pega CDH compatible',
+    description: 'Stratcheck V4 Container API — Pega CDH compatible',
     method:      'POST',
     body: {
       context: { customer: { CustomerID: 'string (required)', '...attributes': 'any' } },

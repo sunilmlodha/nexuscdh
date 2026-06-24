@@ -2,7 +2,7 @@
  * POST /api/triggers/fire
  *
  * Inbound webhook — CDPs, CRMs, and internal systems POST customer events here.
- * NexusCDH matches the event against configured event_triggers, then runs the
+ * Stratcheck matches the event against configured event_triggers, then runs the
  * matched strategies through the decision engine and returns the winning action.
  *
  * Body:

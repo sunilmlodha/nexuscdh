@@ -98,7 +98,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   const isLogin = pathname === '/login';
   if (isLogin) return (
-    <html lang="en"><head><title>NexusCDH — Sign in</title></head>
+    <html lang="en"><head><title>Stratcheck — Sign in</title></head>
       <body style={{ background:'var(--bg)' }}>{children}</body>
     </html>
   );
@@ -116,8 +116,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
-        <title>NexusCDH</title>
-        <meta name="description" content="NexusCDH — Enterprise Customer Decision Hub" />
+        <title>Stratcheck</title>
+        <meta name="description" content="Stratcheck — Enterprise Customer Decision Hub" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet" />
@@ -133,7 +133,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <Zap size={16} color="white" />
               </div>
               <div>
-                <div className="sidebar-logo-text">NexusCDH</div>
+                <div className="sidebar-logo-text">Stratcheck</div>
                 <div className="sidebar-logo-sub">Customer Decision Hub</div>
               </div>
             </div>

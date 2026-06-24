@@ -2,7 +2,7 @@
  * POST /api/audiences/sync
  *
  * Paid media audience sync stubs.
- * Exports a NexusCDH audience segment to Meta, Google, or LinkedIn.
+ * Exports a Stratcheck audience segment to Meta, Google, or LinkedIn.
  *
  * Body: { audienceId, platform, tenantId? }
  *

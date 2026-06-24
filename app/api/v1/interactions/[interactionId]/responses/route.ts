@@ -1,7 +1,7 @@
 /**
  * POST /api/v1/interactions/{interactionId}/responses
  *
- * Pega CDH Capture Response API — NexusCDH compatible.
+ * Pega CDH Capture Response API — Stratcheck compatible.
  *
  * Records channel responses (Clicked, Accepted, Dismissed, etc.) and
  * automatically triggers adaptive model feedback via the shared learning utility.
@@ -15,7 +15,7 @@
  *         "pyChannel": "web",
  *         "CustomerID": "cust-001",
  *         "decisionId": "uuid",      // optional — looked up if omitted
- *         "tenantId": "..."           // NexusCDH extension
+ *         "tenantId": "..."           // Stratcheck extension
  *       }
  *     ]
  *   }
@@ -27,7 +27,7 @@ import { applyFeedback } from '@/lib/learning';
 
 const TENANT = process.env.NEXUS_TENANT_ID ?? 'f0000000-0000-4000-a000-000000000001';
 
-// Pega pyOutcome → NexusCDH outcome
+// Pega pyOutcome → Stratcheck outcome
 const OUTCOME_MAP: Record<string, 'accepted' | 'rejected' | 'ignored'> = {
   Clicked:    'accepted',
   Accepted:   'accepted',

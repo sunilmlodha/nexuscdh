@@ -1,5 +1,5 @@
 /**
- * NexusCDH — Next-Best-Action arbitration engine (Pega CDH-style)
+ * Stratcheck — Next-Best-Action arbitration engine (Pega CDH-style)
  *
  * Two responsibilities, kept pure (no DB, no I/O) so they can be unit-tested
  * and reused by /api/decide, the Scenario Planner, and the Arbitration tester:
