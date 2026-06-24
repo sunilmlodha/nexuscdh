@@ -23,7 +23,7 @@ const ENDPOINTS: Endpoint[] = [
     category: 'Compatibility API',
     method: 'POST',
     path: '/api/v4/containers/PrimaryContainer',
-    title: 'V4 Real-Time Container API',
+    title: 'V4 Container API',
     pegaEquivalent: 'POST /prweb/api/v4/containers/{name}',
     description: 'Get next best actions for a customer in a named container. Returns ranked actions in V4 container format. Use PrimaryContainer, SalesContainer, RetentionContainer, or OnboardingContainer.',
     body: JSON.stringify({

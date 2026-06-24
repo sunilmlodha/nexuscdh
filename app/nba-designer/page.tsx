@@ -35,7 +35,7 @@ const STAGES: { key: StageKey; name: string; tag: string; icon: LucideIcon; edit
   { key: 'applicability', name: 'Applicability',  tag: 'Engagement policy', icon: Target,         editor: 'rules' },
   { key: 'suitability',   name: 'Suitability',    tag: 'Engagement policy', icon: HeartHandshake, editor: 'rules' },
   { key: 'contact',       name: 'Contact policy', tag: 'Constraint',        icon: Clock,          editor: 'readonly' },
-  { key: 'arbitration',   name: 'Arbitration',    tag: 'Prioritise',        icon: Scale,          editor: 'arbitration' },
+  { key: 'arbitration',   name: 'Prioritization',    tag: 'Prioritise',        icon: Scale,          editor: 'arbitration' },
   { key: 'treatment',     name: 'Treatment',      tag: 'Deliver',           icon: Mail,           editor: 'readonly' },
 ];
 const RULE_FIELD: Record<string, 'eligibility_rules' | 'applicability_rules' | 'suitability_rules'> = {
@@ -330,7 +330,7 @@ function StageDrawer({ stageKey, draft, policies, actions, onClose, onSave, savi
               <option value="">— defaults (2/day, 5/week) —</option>
               {policies.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>Frequency caps and suppression rules are managed in Engagement Policies.</p>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>Frequency caps and suppression rules are managed in Decision Guardrails.</p>
             <DrawerSave onSave={savePolicy} saving={saving} />
           </>
         )}

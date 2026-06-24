@@ -140,7 +140,7 @@ function StrategyModal({ strategy, onClose }: { strategy?: Strategy; onClose: ()
             </select>
           </div>
           <div className="field-group" style={{ marginBottom:0 }}>
-            <label className="label">Engagement Policy</label>
+            <label className="label">Decision Guardrail</label>
             <select className="input select" value={policyId} onChange={e=>setPolicyId(e.target.value)}>
               <option value="">None</option>
               {policies.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
@@ -151,7 +151,7 @@ function StrategyModal({ strategy, onClose }: { strategy?: Strategy; onClose: ()
         {/* Tabs */}
         <div style={{ display:'flex', gap:0, borderBottom:'1px solid var(--border)', padding:'0 24px', marginTop:16 }}>
           {TABS.map(t=>(
-            <div key={t} className="tab" data-active={tab===t||undefined} onClick={()=>setTab(t)} style={{ textTransform:'capitalize', fontSize:12 }}>{t}</div>
+            <div key={t} className="tab" data-active={tab===t||undefined} onClick={()=>setTab(t)} style={{ textTransform:'capitalize', fontSize:12 }}>{t==='arbitration'?'Prioritization':t}</div>
           ))}
         </div>
 
@@ -294,7 +294,7 @@ export default function StrategiesPage() {
             </div>
           ) : (
             <table className="table">
-              <thead><tr><th>Strategy</th><th>Category</th><th>Channels</th><th>Actions</th><th>Arbitration</th><th>Priority</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>Strategy</th><th>Category</th><th>Channels</th><th>Actions</th><th>Prioritization</th><th>Priority</th><th>Status</th><th></th></tr></thead>
               <tbody>
                 {visible.map(s => {
                   const cat = categories.find(c=>c.id===s.categoryId);

@@ -60,7 +60,7 @@ const NAV_SECTIONS = [
     items: [
       { href: '/seed',       label: 'Demo Data Seeder',  icon: Share2,          permission: null },
       { href: '/delivery',   label: 'Delivery',          icon: Send,            permission: 'operations:read' },
-      { href: '/revisions',  label: '1:1 Operations',    icon: GitPullRequest,  permission: 'operations:read' },
+      { href: '/revisions',  label: 'Real-Time Operations', icon: GitPullRequest, permission: 'operations:read' },
       { href: '/operations', label: 'Batch Operations',  icon: Activity,        permission: 'operations:read' },
       { href: '/observability', label: 'Observability',   icon: Gauge,           permission: 'operations:read' },
       { href: '/jobs',       label: 'Decision Jobs',     icon: ListChecks,      permission: 'operations:read' },

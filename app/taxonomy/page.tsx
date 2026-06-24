@@ -101,7 +101,7 @@ function ActionModelPanel({
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
               <Brain size={16} color="#6366F1" />
               <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
-                Adaptive Model
+                Self-Learning Model
               </h2>
             </div>
             <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{action.name}</div>
@@ -168,7 +168,7 @@ function ActionModelPanel({
 
         {/* Create / reconfigure */}
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-          {model ? 'Reconfigure Algorithm' : 'Create Adaptive Model'}
+          {model ? 'Reconfigure Algorithm' : 'Create Self-Learning Model'}
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>

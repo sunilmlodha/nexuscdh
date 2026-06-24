@@ -478,7 +478,7 @@ export default function ConfigurationPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
             {[
               { icon: <Layers size={16} color="var(--brand-accent)" />, title: 'Seeds your Taxonomy', body: 'Creates Action Categories with colours, Topics within each category, and fully configured Actions with channels, propensity scores, headlines, and offer codes.' },
-              { icon: <Radio size={16} color="var(--brand-accent)" />, title: 'Configures Policies', body: 'Creates industry-appropriate Engagement Policies with sensible contact frequency limits and fairness controls pre-configured for your sector.' },
+              { icon: <Radio size={16} color="var(--brand-accent)" />, title: 'Configures Policies', body: 'Creates industry-appropriate Decision Guardrails with sensible contact frequency limits and fairness controls pre-configured for your sector.' },
               { icon: <GitBranch size={16} color="var(--brand-accent)" />, title: 'Ready to build strategies', body: 'Once applied, go to Strategies and create your first decision strategy. All taxonomy and policies are already configured and ready to use.' },
             ].map(item => (
               <div key={item.title} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
