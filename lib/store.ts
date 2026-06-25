@@ -321,13 +321,13 @@ interface CDHStore {
   categories: ActionCategory[];
   topics: ActionTopic[];
   actions: Action[];
-  addCategory: (c: Omit<ActionCategory, 'id' | 'createdAt'>) => ActionCategory;
+  addCategory: (c: Omit<ActionCategory, 'id' | 'createdAt'>, id?: string) => ActionCategory;
   updateCategory: (id: string, patch: Partial<ActionCategory>) => void;
   deleteCategory: (id: string) => void;
-  addTopic: (t: Omit<ActionTopic, 'id' | 'createdAt'>) => ActionTopic;
+  addTopic: (t: Omit<ActionTopic, 'id' | 'createdAt'>, id?: string) => ActionTopic;
   updateTopic: (id: string, patch: Partial<ActionTopic>) => void;
   deleteTopic: (id: string) => void;
-  addAction: (a: Omit<Action, 'id' | 'createdAt' | 'updatedAt'>) => Action;
+  addAction: (a: Omit<Action, 'id' | 'createdAt' | 'updatedAt'>, id?: string) => Action;
   updateAction: (id: string, patch: Partial<Action>) => void;
   deleteAction: (id: string) => void;
 
@@ -393,8 +393,8 @@ export const useStore = create<CDHStore>()(
       topics: [],
       actions: [],
 
-      addCategory: (c) => {
-        const cat: ActionCategory = { ...c, id: `CAT-${Date.now()}`, createdAt: now };
+      addCategory: (c, id) => {
+        const cat: ActionCategory = { ...c, id: id ?? `CAT-${Date.now()}`, createdAt: now };
         set(s => ({ categories: [...s.categories, cat] }));
         return cat;
       },
@@ -405,8 +405,8 @@ export const useStore = create<CDHStore>()(
         actions: s.actions.filter(a => a.categoryId!==id),
       })),
 
-      addTopic: (t) => {
-        const topic: ActionTopic = { ...t, id: `TOP-${Date.now()}`, createdAt: now };
+      addTopic: (t, id) => {
+        const topic: ActionTopic = { ...t, id: id ?? `TOP-${Date.now()}`, createdAt: now };
         set(s => ({ topics: [...s.topics, topic] }));
         return topic;
       },
@@ -416,8 +416,8 @@ export const useStore = create<CDHStore>()(
         actions: s.actions.filter(a => a.topicId!==id),
       })),
 
-      addAction: (a) => {
-        const action: Action = { ...a, id: `ACT-${Date.now()}`, createdAt: now, updatedAt: now };
+      addAction: (a, id) => {
+        const action: Action = { ...a, id: id ?? `ACT-${Date.now()}`, createdAt: now, updatedAt: now };
         set(s => ({ actions: [...s.actions, action] }));
         return action;
       },

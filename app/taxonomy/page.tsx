@@ -7,6 +7,33 @@ import { Plus, ChevronRight, Edit2, Trash2, X, Save, CheckCircle2, Layers, Brain
 
 const TENANT_ID = 'f0000000-0000-4000-a000-000000000001';
 
+// ── DB persistence for the taxonomy tree (categories / topics / actions) ──────
+type TaxKind = 'category' | 'topic' | 'action';
+
+/** Create or update a row; returns the saved record (with its real DB id) or null. */
+async function persistTaxonomy(kind: TaxKind, fields: Record<string, unknown>, id?: string): Promise<any | null> {
+  try {
+    const r = await fetch('/api/taxonomy', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind, id, tenantId: TENANT_ID, ...fields }),
+    });
+    const j = await r.json();
+    if (!r.ok) { alert(`Could not save: ${j.error ?? r.status}`); return null; }
+    return j.data;
+  } catch (e) { alert('Could not save — network error.'); return null; }
+}
+
+/** Delete a row (cascades on the server). Returns true on success. */
+async function deleteTaxonomy(kind: TaxKind, id: string): Promise<boolean> {
+  // locally-created rows (non-UUID ids) only live in the store — nothing to delete server-side
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(id)) return true;
+  try {
+    const r = await fetch(`/api/taxonomy?kind=${kind}&id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (!r.ok) { const j = await r.json().catch(() => ({})); alert(`Could not delete: ${j.error ?? r.status}`); return false; }
+    return true;
+  } catch { alert('Could not delete — network error.'); return false; }
+}
+
 const MODEL_TYPES = [
   { value: 'logistic_regression', label: 'Logistic Regression', desc: 'Fast, interpretable, good baseline' },
   { value: 'gradient_boosting',   label: 'Gradient Boosting',   desc: 'Adaptive rate based on signal consistency' },
@@ -239,10 +266,12 @@ function CategoryModal({ cat, onClose }: { cat?: ActionCategory; onClose: () => 
   const [color, setColor] = useState(cat?.color ?? CATEGORY_COLORS[0]);
   const [saved, setSaved] = useState(false);
 
-  const save = () => {
+  const save = async () => {
     if (!name.trim()) return;
+    const row = await persistTaxonomy('category', { name, description: desc, color }, cat?.id);
+    if (!row) return;
     if (cat) updateCategory(cat.id, { name, description: desc, color });
-    else addCategory({ name, description: desc, color });
+    else addCategory({ name, description: desc, color }, row.id);
     setSaved(true); setTimeout(onClose, 500);
   };
 
@@ -290,10 +319,12 @@ function TopicModal({ topic, categories, onClose }: { topic?: ActionTopic; categ
   const [catId, setCatId]   = useState(topic?.categoryId ?? categories[0]?.id ?? '');
   const [saved, setSaved]   = useState(false);
 
-  const save = () => {
+  const save = async () => {
     if (!name.trim() || !catId) return;
+    const row = await persistTaxonomy('topic', { name, description: desc, categoryId: catId }, topic?.id);
+    if (!row) return;
     if (topic) updateTopic(topic.id, { name, description: desc, categoryId: catId });
-    else addTopic({ name, description: desc, categoryId: catId });
+    else addTopic({ name, description: desc, categoryId: catId }, row.id);
     setSaved(true); setTimeout(onClose, 500);
   };
 
@@ -349,11 +380,13 @@ function ActionModal({ action, topics, categories, onClose }: { action?: Action;
   const toggleCh = (ch: string) => setSelChannels(p => p.includes(ch) ? p.filter(c=>c!==ch) : [...p, ch]);
   const topic = topics.find(t => t.id === topicId);
 
-  const save = () => {
+  const save = async () => {
     if (!name.trim() || !topicId) return;
     const payload = { name, description:desc, topicId, categoryId: topic?.categoryId??'', headline, body, ctaLabel:cta, offerCode:code, value:value?+value:undefined, basePropensity:+propensity, channels:selChannels as any, status };
+    const row = await persistTaxonomy('action', payload, action?.id);
+    if (!row) return;
     if (action) updateAction(action.id, payload);
-    else addAction(payload);
+    else addAction(payload, row.id);
     setSaved(true); setTimeout(onClose, 500);
   };
 
@@ -510,7 +543,7 @@ export default function TaxonomyPage() {
                   {canWrite && (
                     <div style={{ display:'flex', gap:2 }} onClick={e => e.stopPropagation()}>
                       <button onClick={() => setModal({type:'category', data:cat})} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)', padding:2 }}><Edit2 size={11}/></button>
-                      <button onClick={() => confirm(`Delete "${cat.name}" and all its topics and actions?`) && deleteCategory(cat.id)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)', padding:2 }}><Trash2 size={11}/></button>
+                      <button onClick={async () => { if (confirm(`Delete "${cat.name}" and all its topics and actions?`) && await deleteTaxonomy('category', cat.id)) deleteCategory(cat.id); }} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)', padding:2 }}><Trash2 size={11}/></button>
                     </div>
                   )}
                 </div>
@@ -547,7 +580,7 @@ export default function TaxonomyPage() {
                     {canWrite && (
                       <div style={{ display:'flex', gap:2 }} onClick={e=>e.stopPropagation()}>
                         <button onClick={()=>setModal({type:'topic',data:t})} style={{ background:'none',border:'none',cursor:'pointer',color:'var(--text-muted)',padding:2 }}><Edit2 size={11}/></button>
-                        <button onClick={()=>confirm(`Delete "${t.name}"?`)&&deleteTopic(t.id)} style={{ background:'none',border:'none',cursor:'pointer',color:'var(--text-muted)',padding:2 }}><Trash2 size={11}/></button>
+                        <button onClick={async ()=>{ if (confirm(`Delete "${t.name}"?`) && await deleteTaxonomy('topic', t.id)) deleteTopic(t.id); }} style={{ background:'none',border:'none',cursor:'pointer',color:'var(--text-muted)',padding:2 }}><Trash2 size={11}/></button>
                       </div>
                     )}
                   </div>
@@ -616,7 +649,7 @@ export default function TaxonomyPage() {
                         {canWrite && (
                           <div style={{ display:'flex', gap:4 }}>
                             <button onClick={()=>setModal({type:'action',data:a})} className="btn btn-ghost btn-sm" style={{ padding:'4px 8px' }}><Edit2 size={12}/></button>
-                            <button onClick={()=>confirm(`Delete "${a.name}"?`)&&deleteAction(a.id)} className="btn btn-ghost btn-sm" style={{ padding:'4px 8px', color:'var(--danger)' }}><Trash2 size={12}/></button>
+                            <button onClick={async ()=>{ if (confirm(`Delete "${a.name}"?`) && await deleteTaxonomy('action', a.id)) deleteAction(a.id); }} className="btn btn-ghost btn-sm" style={{ padding:'4px 8px', color:'var(--danger)' }}><Trash2 size={12}/></button>
                           </div>
                         )}
                       </td>
