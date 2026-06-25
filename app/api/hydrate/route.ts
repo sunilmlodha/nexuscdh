@@ -7,6 +7,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+// Always read live from the DB — this endpoint takes no request params, so Next
+// would otherwise statically cache it and serve a stale snapshot (making edits
+// and deletes "reappear" on reload).
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const SUPA_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? '';
 const SUPA_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 // Must match the TENANT_ID used in the seed route
