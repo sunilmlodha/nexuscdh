@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import type { CSSProperties } from 'react';
 import { useStore, ActionCategory, ActionTopic, Action } from '@/lib/store';
 import { usePermission } from '@/lib/auth';
-import { Plus, ChevronRight, Edit2, Trash2, X, Save, CheckCircle2, Layers, Brain, ExternalLink } from 'lucide-react';
+import { Plus, ChevronRight, ChevronDown, Edit2, Trash2, X, Save, CheckCircle2, Layers, Brain, ExternalLink, Search, Folder, Zap } from 'lucide-react';
 
 const TENANT_ID = 'f0000000-0000-4000-a000-000000000001';
 
@@ -58,6 +59,14 @@ const STATUS_COLORS: Record<string, { color: string; bg: string }> = {
   training: { color: '#D97706', bg: '#FEF3C7' },
   retired:  { color: '#9CA3AF', bg: '#F3F4F6' },
 };
+
+// ── Tree-grid shared styles ───────────────────────────────────────────────────
+const GRID = 'minmax(0,1fr) 132px 116px 84px 46px 64px';
+const rowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: GRID, gap: 8, alignItems: 'center', padding: '10px 16px', borderBottom: '1px solid var(--border)' };
+const chevBtn: CSSProperties = { background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, display: 'flex', flexShrink: 0 };
+const iconBtn: CSSProperties = { background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 3, display: 'inline-flex', borderRadius: 6 };
+const rowActions: CSSProperties = { display: 'inline-flex', gap: 2, justifySelf: 'end' };
+const chip: CSSProperties = { fontSize: 11, padding: '2px 7px', borderRadius: 6, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-secondary)', textTransform: 'capitalize', whiteSpace: 'nowrap' };
 
 // ── Quick ADM panel opened from taxonomy row ──────────────────────────────────
 
@@ -312,11 +321,11 @@ function CategoryModal({ cat, onClose }: { cat?: ActionCategory; onClose: () => 
   );
 }
 
-function TopicModal({ topic, categories, onClose }: { topic?: ActionTopic; categories: ActionCategory[]; onClose: () => void }) {
+function TopicModal({ topic, categories, defaultCategoryId, onClose }: { topic?: ActionTopic; categories: ActionCategory[]; defaultCategoryId?: string; onClose: () => void }) {
   const { addTopic, updateTopic } = useStore();
   const [name, setName]     = useState(topic?.name ?? '');
   const [desc, setDesc]     = useState(topic?.description ?? '');
-  const [catId, setCatId]   = useState(topic?.categoryId ?? categories[0]?.id ?? '');
+  const [catId, setCatId]   = useState(topic?.categoryId ?? defaultCategoryId ?? categories[0]?.id ?? '');
   const [saved, setSaved]   = useState(false);
 
   const save = async () => {
@@ -362,11 +371,11 @@ function TopicModal({ topic, categories, onClose }: { topic?: ActionTopic; categ
   );
 }
 
-function ActionModal({ action, topics, categories, onClose }: { action?: Action; topics: ActionTopic[]; categories: ActionCategory[]; onClose: () => void }) {
+function ActionModal({ action, topics, categories, defaultTopicId, onClose }: { action?: Action; topics: ActionTopic[]; categories: ActionCategory[]; defaultTopicId?: string; onClose: () => void }) {
   const { addAction, updateAction } = useStore();
   const [name, setName]         = useState(action?.name ?? '');
   const [desc, setDesc]         = useState(action?.description ?? '');
-  const [topicId, setTopicId]   = useState(action?.topicId ?? topics[0]?.id ?? '');
+  const [topicId, setTopicId]   = useState(action?.topicId ?? defaultTopicId ?? topics[0]?.id ?? '');
   const [headline, setHeadline] = useState(action?.headline ?? '');
   const [body, setBody]         = useState(action?.body ?? '');
   const [cta, setCta]           = useState(action?.ctaLabel ?? '');
@@ -470,12 +479,13 @@ export default function TaxonomyPage() {
   const canWrite = usePermission('taxonomy:write');
   const [modal, setModal] = useState<
     | { type:'category'; data?: ActionCategory }
-    | { type:'topic'; data?: ActionTopic }
-    | { type:'action'; data?: Action }
+    | { type:'topic'; data?: ActionTopic; parentCategoryId?: string }
+    | { type:'action'; data?: Action; parentTopicId?: string }
     | null
   >(null);
-  const [activeCat, setActiveCat] = useState<string | null>(null);
-  const [activeTopic, setActiveTopic] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const toggle = (id: string) => setCollapsed(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   // ADM state
   const [models, setModels] = useState<ADMModel[]>([]);
@@ -493,12 +503,14 @@ export default function TaxonomyPage() {
 
   const modelByActionId = Object.fromEntries(models.map(m => [m.action_id as string, m]));
 
-  const visibleTopics = topics.filter(t => !activeCat || t.categoryId === activeCat);
-  const visibleActions = actions.filter(a => {
-    if (activeTopic) return a.topicId === activeTopic;
-    if (activeCat)   return a.categoryId === activeCat;
-    return true;
-  });
+  // Tree filtering: a node is visible if it (or any descendant) matches the query.
+  const q = query.trim().toLowerCase();
+  const matchAction = (a: Action) => !q || a.name.toLowerCase().includes(q) || (a.offerCode ?? '').toLowerCase().includes(q);
+  const topicActions = (tid: string) => actions.filter(a => a.topicId === tid);
+  const catName = (id: string) => categories.find(c => c.id === id)?.name.toLowerCase() ?? '';
+  const topicVisible = (t: ActionTopic) => !q || t.name.toLowerCase().includes(q) || catName(t.categoryId).includes(q) || topicActions(t.id).some(matchAction);
+  const catVisible = (c: ActionCategory) => !q || c.name.toLowerCase().includes(q) || topics.filter(t => t.categoryId === c.id).some(topicVisible);
+  const isExpanded = (id: string) => (q ? true : !collapsed.has(id));
 
   return (
     <div className="animate-in">
@@ -516,156 +528,123 @@ export default function TaxonomyPage() {
         )}
       </div>
 
-      <div style={{ padding:'0 24px 24px', display:'grid', gridTemplateColumns:'200px 220px 1fr', gap:16 }}>
+      <div style={{ padding:'0 24px 24px' }}>
 
-        {/* Categories */}
-        <div className="card" style={{ padding:0, overflow:'hidden' }}>
-          <div className="card-header" style={{ padding:'12px 14px' }}>
-            <span className="card-title" style={{ fontSize:11 }}>Categories</span>
-            <span style={{ fontSize:11, color:'var(--text-muted)' }}>{categories.length}</span>
+        {/* Toolbar: search + counts */}
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14, flexWrap:'wrap' }}>
+          <div style={{ position:'relative', flex:1, minWidth:220 }}>
+            <Search size={14} style={{ position:'absolute', left:10, top:9, color:'var(--text-muted)' }} />
+            <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search categories, topics, actions…"
+              style={{ width:'100%', padding:'7px 10px 7px 32px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg-panel)', color:'var(--text-primary)', fontSize:13, boxSizing:'border-box' }} />
           </div>
+          <div style={{ display:'flex', gap:8 }}>
+            <span style={{ fontSize:12, color:'var(--text-secondary)', background:'var(--bg)', border:'1px solid var(--border)', padding:'4px 10px', borderRadius:8 }}>{categories.length} categories</span>
+            <span style={{ fontSize:12, color:'var(--text-secondary)', background:'var(--bg)', border:'1px solid var(--border)', padding:'4px 10px', borderRadius:8 }}>{topics.length} topics</span>
+            <span style={{ fontSize:12, color:'var(--text-secondary)', background:'var(--bg)', border:'1px solid var(--border)', padding:'4px 10px', borderRadius:8 }}>{actions.length} actions</span>
+          </div>
+        </div>
+
+        {/* Unified tree-grid */}
+        <div className="card" style={{ padding:0, overflow:'hidden' }}>
+          {/* column header */}
+          <div style={{ display:'grid', gridTemplateColumns:GRID, gap:8, padding:'9px 16px', fontSize:10.5, letterSpacing:'0.05em', textTransform:'uppercase', color:'var(--text-muted)', borderBottom:'1px solid var(--border)' }}>
+            <span>Name</span><span>Channels</span><span>Propensity</span><span>Status</span><span style={{ textAlign:'center' }}>ADM</span><span></span>
+          </div>
+
           {categories.length === 0 ? (
-            <div style={{ padding:'20px 14px', textAlign:'center' }}>
-              <div style={{ fontSize:11, color:'var(--text-muted)', marginBottom:8 }}>No categories yet</div>
-              {canWrite && <button onClick={() => setModal({type:'category'})} className="btn btn-primary btn-sm" style={{ fontSize:11 }}><Plus size={11}/>Add</button>}
+            <div style={{ padding:'40px', textAlign:'center', color:'var(--text-muted)', fontSize:13 }}>
+              No categories yet.{canWrite && <button onClick={()=>setModal({type:'category'})} className="btn btn-primary btn-sm" style={{ marginLeft:10 }}><Plus size={12}/>Add category</button>}
             </div>
-          ) : (
-            <div style={{ overflowY:'auto' }}>
-              {categories.map(cat => (
-                <div key={cat.id} onClick={() => { setActiveCat(activeCat===cat.id?null:cat.id); setActiveTopic(null); }}
-                  style={{ padding:'9px 14px', cursor:'pointer', display:'flex', alignItems:'center', gap:8, borderBottom:'1px solid #F3F4F6',
-                    background: activeCat===cat.id ? 'var(--bg)' : '',
-                    borderLeft: activeCat===cat.id ? `3px solid ${cat.color}` : '3px solid transparent',
-                  }}>
-                  <span style={{ width:8, height:8, borderRadius:'50%', background:cat.color, flexShrink:0 }} />
-                  <span style={{ flex:1, fontSize:12, fontWeight:activeCat===cat.id?700:500, color:'var(--text-primary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{cat.name}</span>
-                  <span style={{ fontSize:10, color:'var(--text-muted)' }}>{topics.filter(t=>t.categoryId===cat.id).length}</span>
-                  {canWrite && (
-                    <div style={{ display:'flex', gap:2 }} onClick={e => e.stopPropagation()}>
-                      <button onClick={() => setModal({type:'category', data:cat})} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)', padding:2 }}><Edit2 size={11}/></button>
-                      <button onClick={async () => { if (confirm(`Delete "${cat.name}" and all its topics and actions?`) && await deleteTaxonomy('category', cat.id)) deleteCategory(cat.id); }} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)', padding:2 }}><Trash2 size={11}/></button>
-                    </div>
-                  )}
+          ) : categories.filter(catVisible).length === 0 ? (
+            <div style={{ padding:'40px', textAlign:'center', color:'var(--text-muted)', fontSize:13 }}>No matches for “{query}”.</div>
+          ) : categories.filter(catVisible).map(cat => {
+            const catTopics = topics.filter(t => t.categoryId === cat.id);
+            const catActions = actions.filter(a => a.categoryId === cat.id).length;
+            const catOpen = isExpanded(cat.id);
+            return (
+              <div key={cat.id}>
+                {/* category row */}
+                <div style={{ ...rowStyle, borderLeft:`3px solid ${cat.color}`, background:'var(--bg)' }}>
+                  <span style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
+                    <button onClick={()=>toggle(cat.id)} style={chevBtn} aria-label="Toggle">{catOpen ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}</button>
+                    <span style={{ width:9, height:9, borderRadius:'50%', background:cat.color, flexShrink:0 }} />
+                    <span style={{ fontWeight:600, color:'var(--text-primary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{cat.name}</span>
+                    <span style={{ fontSize:11, color:'var(--text-muted)', flexShrink:0 }}>{catTopics.length} topics · {catActions} actions</span>
+                  </span>
+                  <span/><span/><span/><span/>
+                  {canWrite && <span style={rowActions}>
+                    <button title="Add topic" onClick={()=>setModal({type:'topic', parentCategoryId:cat.id})} style={iconBtn}><Plus size={13}/></button>
+                    <button title="Edit category" onClick={()=>setModal({type:'category', data:cat})} style={iconBtn}><Edit2 size={12}/></button>
+                    <button title="Delete category" onClick={async()=>{ if (confirm(`Delete "${cat.name}" and all its topics and actions?`) && await deleteTaxonomy('category', cat.id)) deleteCategory(cat.id); }} style={iconBtn}><Trash2 size={12}/></button>
+                  </span>}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
 
-        {/* Topics */}
-        <div className="card" style={{ padding:0, overflow:'hidden' }}>
-          <div className="card-header" style={{ padding:'12px 14px' }}>
-            <span className="card-title" style={{ fontSize:11 }}>Topics</span>
-            <span style={{ fontSize:11, color:'var(--text-muted)' }}>{visibleTopics.length}</span>
-          </div>
-          {visibleTopics.length === 0 ? (
-            <div style={{ padding:'20px 14px', textAlign:'center' }}>
-              <div style={{ fontSize:11, color:'var(--text-muted)', marginBottom:8 }}>
-                {categories.length === 0 ? 'Create a category first' : 'No topics yet'}
-              </div>
-              {canWrite && categories.length > 0 && <button onClick={() => setModal({type:'topic'})} className="btn btn-secondary btn-sm" style={{ fontSize:11 }}><Plus size={11}/>Add</button>}
-            </div>
-          ) : (
-            <div style={{ overflowY:'auto' }}>
-              {visibleTopics.map(t => {
-                const cat = categories.find(c=>c.id===t.categoryId);
-                return (
-                  <div key={t.id} onClick={() => setActiveTopic(activeTopic===t.id?null:t.id)}
-                    style={{ padding:'9px 14px', cursor:'pointer', display:'flex', alignItems:'center', gap:8, borderBottom:'1px solid #F3F4F6',
-                      background: activeTopic===t.id ? 'var(--bg)' : '',
-                      borderLeft: activeTopic===t.id ? `3px solid ${cat?.color??'var(--brand-accent)'}` : '3px solid transparent',
-                    }}>
-                    <span style={{ flex:1, fontSize:12, fontWeight:activeTopic===t.id?700:500, color:'var(--text-primary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.name}</span>
-                    <span style={{ fontSize:10, color:'var(--text-muted)' }}>{actions.filter(a=>a.topicId===t.id).length}</span>
-                    {canWrite && (
-                      <div style={{ display:'flex', gap:2 }} onClick={e=>e.stopPropagation()}>
-                        <button onClick={()=>setModal({type:'topic',data:t})} style={{ background:'none',border:'none',cursor:'pointer',color:'var(--text-muted)',padding:2 }}><Edit2 size={11}/></button>
-                        <button onClick={async ()=>{ if (confirm(`Delete "${t.name}"?`) && await deleteTaxonomy('topic', t.id)) deleteTopic(t.id); }} style={{ background:'none',border:'none',cursor:'pointer',color:'var(--text-muted)',padding:2 }}><Trash2 size={11}/></button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div className="card" style={{ padding:0, overflow:'hidden' }}>
-          <div className="card-header">
-            <span className="card-title">Actions <span style={{ fontWeight:400, color:'var(--text-muted)', marginLeft:6 }}>{visibleActions.length}</span></span>
-            {canWrite && <button onClick={() => setModal({type:'action'})} disabled={topics.length===0} className="btn btn-primary btn-sm"><Plus size={13}/>New Action</button>}
-          </div>
-          {visibleActions.length === 0 ? (
-            <div className="empty-state">
-              <div style={{ fontSize:32, marginBottom:8, opacity:0.2 }}>⚡</div>
-              <div className="empty-state-title">{topics.length===0 ? 'Create a topic first' : 'No actions yet'}</div>
-              {canWrite && topics.length > 0 && <button onClick={()=>setModal({type:'action'})} className="btn btn-primary btn-sm" style={{ marginTop:12 }}><Plus size={13}/>Add action</button>}
-            </div>
-          ) : (
-            <table className="table">
-              <thead><tr><th>Action</th><th>Topic</th><th>Channels</th><th>Propensity</th><th>Status</th><th>ADM</th><th></th></tr></thead>
-              <tbody>
-                {visibleActions.map(a => {
-                  const topic = topics.find(t=>t.id===a.topicId);
-                  const cat   = categories.find(c=>c.id===a.categoryId);
-                  const adm   = modelByActionId[a.id];
-                  const sc    = adm ? (STATUS_COLORS[adm.status] ?? STATUS_COLORS.retired) : null;
+                {/* topics */}
+                {catOpen && catTopics.filter(topicVisible).map(t => {
+                  const tActions = topicActions(t.id).filter(matchAction);
+                  const tOpen = isExpanded(t.id);
                   return (
-                    <tr key={a.id}>
-                      <td>
-                        <div style={{ fontWeight:600, fontSize:13 }}>{a.name}</div>
-                        {a.offerCode && <div style={{ fontSize:11, color:'var(--text-muted)', fontFamily:'var(--font-mono)' }}>{a.offerCode}</div>}
-                      </td>
-                      <td>
-                        {cat && <span className="badge" style={{ background:cat.color+'18', color:cat.color, marginBottom:3, display:'block', width:'fit-content' }}>{cat.name}</span>}
-                        <div style={{ fontSize:12, color:'var(--text-secondary)' }}>{topic?.name}</div>
-                      </td>
-                      <td style={{ fontSize:12, color:'var(--text-secondary)' }}>
-                        {a.channels.length > 0 ? a.channels.map(c=>c.replace(/_/g,' ')).join(', ') : '—'}
-                      </td>
-                      <td style={{ fontWeight:700, color:'var(--brand-accent)', fontFamily:'var(--font-mono)' }}>{a.basePropensity.toFixed(2)}</td>
-                      <td>
-                        <span className={`badge ${a.status==='active'?'badge-green':a.status==='draft'?'badge-gray':'badge-amber'}`}>{a.status}</span>
-                      </td>
-                      <td>
-                        <button
-                          onClick={() => setAdmPanel(a)}
-                          style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 5,
-                            padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                            cursor: 'pointer', border: `1px solid ${adm && sc ? sc.color+'44' : 'var(--border)'}`,
-                            background: adm ? (sc?.bg ?? 'var(--bg)') : 'var(--bg)',
-                            color: adm ? (sc?.color ?? 'var(--text-muted)') : 'var(--text-muted)',
-                          }}
-                        >
-                          <Brain size={11} />
-                          {adm
-                            ? adm.status.charAt(0).toUpperCase() + adm.status.slice(1)
-                            : 'Set up'}
-                        </button>
-                      </td>
-                      <td>
-                        {canWrite && (
-                          <div style={{ display:'flex', gap:4 }}>
-                            <button onClick={()=>setModal({type:'action',data:a})} className="btn btn-ghost btn-sm" style={{ padding:'4px 8px' }}><Edit2 size={12}/></button>
-                            <button onClick={async ()=>{ if (confirm(`Delete "${a.name}"?`) && await deleteTaxonomy('action', a.id)) deleteAction(a.id); }} className="btn btn-ghost btn-sm" style={{ padding:'4px 8px', color:'var(--danger)' }}><Trash2 size={12}/></button>
+                    <div key={t.id}>
+                      <div style={{ ...rowStyle, paddingLeft:40 }}>
+                        <span style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
+                          <button onClick={()=>toggle(t.id)} style={chevBtn} aria-label="Toggle">{tOpen ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}</button>
+                          <Folder size={13} style={{ color:'var(--text-secondary)', flexShrink:0 }} />
+                          <span style={{ color:'var(--text-primary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.name}</span>
+                          <span style={{ fontSize:11, color:'var(--text-muted)', flexShrink:0 }}>{topicActions(t.id).length} actions</span>
+                        </span>
+                        <span/><span/><span/><span/>
+                        {canWrite && <span style={rowActions}>
+                          <button title="Add action" onClick={()=>setModal({type:'action', parentTopicId:t.id})} style={iconBtn}><Plus size={13}/></button>
+                          <button title="Edit topic" onClick={()=>setModal({type:'topic', data:t})} style={iconBtn}><Edit2 size={12}/></button>
+                          <button title="Delete topic" onClick={async()=>{ if (confirm(`Delete "${t.name}"?`) && await deleteTaxonomy('topic', t.id)) deleteTopic(t.id); }} style={iconBtn}><Trash2 size={12}/></button>
+                        </span>}
+                      </div>
+
+                      {/* actions */}
+                      {tOpen && tActions.map(a => {
+                        const adm = modelByActionId[a.id];
+                        const sc  = adm ? (STATUS_COLORS[adm.status] ?? STATUS_COLORS.retired) : null;
+                        const st  = a.status==='active' ? { c:'var(--success)', b:'var(--success-l)' } : a.status==='draft' ? { c:'var(--text-secondary)', b:'var(--bg)' } : { c:'var(--warning)', b:'var(--warning-l)' };
+                        return (
+                          <div key={a.id} style={{ ...rowStyle, paddingLeft:64 }}>
+                            <span style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
+                              <Zap size={13} style={{ color:'var(--text-muted)', flexShrink:0 }} />
+                              <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color:'var(--text-primary)' }}>{a.name}</span>
+                              {a.offerCode && <span style={{ fontSize:10, fontFamily:'var(--font-mono)', color:'var(--text-muted)', flexShrink:0 }}>{a.offerCode}</span>}
+                            </span>
+                            <span style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
+                              {a.channels.length ? a.channels.slice(0,3).map(c => <span key={c} style={chip}>{c.replace(/_/g,' ')}</span>) : <span style={{ color:'var(--text-muted)', fontSize:12 }}>—</span>}
+                            </span>
+                            <span style={{ display:'flex', alignItems:'center', gap:6 }}>
+                              <span style={{ flex:1, height:5, borderRadius:3, background:'var(--bg)', overflow:'hidden', minWidth:24 }}>
+                                <span style={{ display:'block', width:`${Math.round(a.basePropensity*100)}%`, height:'100%', background:a.basePropensity>=0.5?'var(--success)':'var(--warning)' }} />
+                              </span>
+                              <span style={{ fontSize:11, color:'var(--text-secondary)', fontFamily:'var(--font-mono)' }}>{a.basePropensity.toFixed(2)}</span>
+                            </span>
+                            <span><span style={{ fontSize:11, padding:'2px 8px', borderRadius:6, background:st.b, color:st.c, textTransform:'capitalize' }}>{a.status}</span></span>
+                            <span style={{ textAlign:'center' }}>
+                              <button onClick={()=>setAdmPanel(a)} title={adm ? `Model: ${adm.status}` : 'Set up model'} style={{ ...iconBtn, color: adm && sc ? sc.color : 'var(--text-muted)' }}><Brain size={14}/></button>
+                            </span>
+                            {canWrite && <span style={rowActions}>
+                              <button title="Edit action" onClick={()=>setModal({type:'action', data:a})} style={iconBtn}><Edit2 size={12}/></button>
+                              <button title="Delete action" onClick={async()=>{ if (confirm(`Delete "${a.name}"?`) && await deleteTaxonomy('action', a.id)) deleteAction(a.id); }} style={{ ...iconBtn, color:'var(--danger)' }}><Trash2 size={12}/></button>
+                            </span>}
                           </div>
-                        )}
-                      </td>
-                    </tr>
+                        );
+                      })}
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
-          )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
       {/* Modals */}
       {modal?.type==='category' && <CategoryModal cat={modal.data} onClose={()=>setModal(null)} />}
-      {modal?.type==='topic'    && <TopicModal topic={modal.data} categories={categories} onClose={()=>setModal(null)} />}
-      {modal?.type==='action'   && <ActionModal action={modal.data} topics={topics} categories={categories} onClose={()=>setModal(null)} />}
+      {modal?.type==='topic'    && <TopicModal topic={modal.data} categories={categories} defaultCategoryId={modal.parentCategoryId} onClose={()=>setModal(null)} />}
+      {modal?.type==='action'   && <ActionModal action={modal.data} topics={topics} categories={categories} defaultTopicId={modal.parentTopicId} onClose={()=>setModal(null)} />}
       {admPanel && (
         <ActionModelPanel
           action={admPanel}
